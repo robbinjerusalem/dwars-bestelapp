@@ -13,6 +13,7 @@ export default function Page() {
   const [category, setCategory] = useState('Alle');
   const [search, setSearch] = useState('');
   const [cart, setCart] = useState<CartLine[]>([]);
+  const [cartOpen, setCartOpen] = useState(false);
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
   const [selectedOptions, setSelectedOptions] = useState<MenuOption[]>([]);
   const [admin, setAdmin] = useState(false);
@@ -67,13 +68,6 @@ export default function Page() {
     ]);
 
     setActiveProduct(null);
-
-    setTimeout(() => {
-      document.getElementById('bestelling')?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start'
-      });
-    }, 100);
   }
 
   function increaseQuantity(index: number) {
@@ -104,6 +98,7 @@ export default function Page() {
 
     setName('');
     setCart([]);
+    setCartOpen(false);
     await load();
     alert('Bestelling opgeslagen!');
   }
@@ -271,67 +266,96 @@ export default function Page() {
             ))}
           </section>
 
-          <section
-            className="card"
-            id="bestelling"
-            style={{
-              marginTop: 16,
-              scrollMarginTop: 100
-            }}
-          >
-            <h2>Jouw bestelling</h2>
-
-            {cart.length === 0 ? (
-              <p className="small">Nog niets gekozen.</p>
-            ) : (
-              cart.map((item, idx) => (
-                <div
-                  className="row"
-                  key={idx}
-                  style={{
-                    borderBottom: '1px solid #eee',
-                    padding: '8px 0',
-                    gap: 12
-                  }}
-                >
-                  <div style={{ flex: 1 }}>
-                    <span>
-                      {item.quantity}x {item.productName}
-                      {item.options.length
-                        ? ' + ' + item.options.map(o => o.name).join(', ')
-                        : ''}
-                    </span>
-                    <div className="small">{euro(itemTotal(item))}</div>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <button className="btn secondary" onClick={() => decreaseQuantity(idx)}>
-                      -
-                    </button>
-                    <strong>{item.quantity}</strong>
-                    <button className="btn" onClick={() => increaseQuantity(idx)}>
-                      +
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-
-            <div className="totalBox">
-              <div className="row">
-                <strong>Totaal</strong>
-                <strong>{euro(cartTotal)}</strong>
-              </div>
-
+          {cart.length > 0 && (
+            <div
+              style={{
+                position: 'fixed',
+                bottom: 16,
+                left: 16,
+                right: 16,
+                zIndex: 40
+              }}
+            >
               <button
                 className="btn"
-                style={{ width: '100%', marginTop: 12 }}
-                onClick={submitOrder}
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  borderRadius: 18,
+                  fontSize: 18,
+                  boxShadow: '0 10px 30px rgba(0,0,0,.2)'
+                }}
+                onClick={() => setCartOpen(true)}
               >
-                Bestelling doorgeven
+                Bekijk bestelling ({euro(cartTotal)})
               </button>
             </div>
-          </section>
+          )}
+
+          {cartOpen && (
+            <div className="modalBg">
+              <div className="modal">
+                <div className="row">
+                  <h2>Jouw bestelling</h2>
+
+                  <button className="btn secondary" onClick={() => setCartOpen(false)}>
+                    Sluiten
+                  </button>
+                </div>
+
+                {cart.length === 0 ? (
+                  <p className="small">Nog niets gekozen.</p>
+                ) : (
+                  cart.map((item, idx) => (
+                    <div
+                      className="row"
+                      key={idx}
+                      style={{
+                        borderBottom: '1px solid #eee',
+                        padding: '10px 0',
+                        gap: 12
+                      }}
+                    >
+                      <div style={{ flex: 1 }}>
+                        <span>
+                          {item.quantity}x {item.productName}
+                          {item.options.length
+                            ? ' + ' + item.options.map(o => o.name).join(', ')
+                            : ''}
+                        </span>
+                        <div className="small">{euro(itemTotal(item))}</div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <button className="btn secondary" onClick={() => decreaseQuantity(idx)}>
+                          -
+                        </button>
+                        <strong>{item.quantity}</strong>
+                        <button className="btn" onClick={() => increaseQuantity(idx)}>
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+
+                <div className="totalBox">
+                  <div className="row">
+                    <strong>Totaal</strong>
+                    <strong>{euro(cartTotal)}</strong>
+                  </div>
+
+                  <button
+                    className="btn"
+                    style={{ width: '100%', marginTop: 12 }}
+                    onClick={submitOrder}
+                  >
+                    Bestelling doorgeven
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
 
