@@ -30,7 +30,17 @@ export default function Page() {
 
   useEffect(() => {
     load();
+
+    const savedName = localStorage.getItem('dwars-name');
+
+    if (savedName) {
+      setName(savedName);
+    }
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('dwars-name', name);
+  }, [name]);
 
   const categories = useMemo(
     () => ['Alle', ...Array.from(new Set(menu?.products.map(p => p.category) || []))],
@@ -89,17 +99,24 @@ export default function Page() {
   }
 
   async function submitOrder() {
+    if (!name.trim()) {
+      return alert('Vul je voor- en achternaam in');
+    }
+
     const res = await fetch('/api/orders', {
       method: 'POST',
       body: JSON.stringify({ personName: name, items: cart })
     });
 
-    if (!res.ok) return alert((await res.json()).error || 'Opslaan mislukt');
+    if (!res.ok) {
+      return alert((await res.json()).error || 'Opslaan mislukt');
+    }
 
-    setName('');
     setCart([]);
     setCartOpen(false);
+
     await load();
+
     alert('Bestelling opgeslagen!');
   }
 
@@ -107,6 +124,7 @@ export default function Page() {
     if (!confirm('Alle bestellingen wissen voor een nieuwe ronde?')) return;
 
     await fetch('/api/orders', { method: 'DELETE' });
+
     await load();
   }
 
@@ -138,12 +156,16 @@ export default function Page() {
       <div className="header">
         <div>
           <h1>Dwars Bestelapp</h1>
+
           <p className="small">
             Prijzen bijgewerkt: {new Date(menu.updatedAt).toLocaleString('nl-NL')} · bron: {menu.source}
           </p>
         </div>
 
-        <button className="btn secondary" onClick={() => setAdmin(!admin)}>
+        <button
+          className="btn secondary"
+          onClick={() => setAdmin(!admin)}
+        >
           {admin ? 'Bestellen' : 'Admin overzicht'}
         </button>
       </div>
@@ -152,7 +174,11 @@ export default function Page() {
         <section className="card">
           <div className="row">
             <h2>Overzicht</h2>
-            <button className="btn danger" onClick={clearOrders}>
+
+            <button
+              className="btn danger"
+              onClick={clearOrders}
+            >
               Nieuwe ronde / wissen
             </button>
           </div>
@@ -168,20 +194,26 @@ export default function Page() {
                 <th>Tikkie tekst</th>
               </tr>
             </thead>
+
             <tbody>
               {orders.map(order => (
                 <tr key={order.id}>
                   <td>{order.personName}</td>
+
                   <td>
                     {order.items
                       .map(i =>
                         `${i.quantity}x ${i.productName}${
-                          i.options?.length ? ' + ' + i.options.map(o => o.name).join(', ') : ''
+                          i.options?.length
+                            ? ' + ' + i.options.map(o => o.name).join(', ')
+                            : ''
                         }`
                       )
                       .join('; ')}
                   </td>
+
                   <td>{euro(orderTotal(order))}</td>
+
                   <td>
                     Hoi {order.personName}, jouw Dwars-bestelling was {euro(orderTotal(order))}.
                   </td>
@@ -199,6 +231,7 @@ export default function Page() {
                 <th>Aantal</th>
               </tr>
             </thead>
+
             <tbody>
               {productTotals.map(row => (
                 <tr key={row.label}>
@@ -209,22 +242,26 @@ export default function Page() {
             </tbody>
           </table>
 
-          <h3>Eindtotaal: {euro(orders.reduce((s, o) => s + orderTotal(o), 0))}</h3>
+          <h3>
+            Eindtotaal: {euro(orders.reduce((s, o) => s + orderTotal(o), 0))}
+          </h3>
         </section>
       ) : (
         <>
           <section className="card" style={{ marginBottom: 16 }}>
-            <label>Naam</label>
+            <label>Voor- en achternaam</label>
+
             <input
               className="input"
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="Vul je naam in"
+              placeholder="Bijv. Jan Jansen"
             />
           </section>
 
           <section className="card" style={{ marginBottom: 16 }}>
             <label>Zoeken</label>
+
             <input
               className="input"
               value={search}
@@ -250,7 +287,10 @@ export default function Page() {
               <article className="card product" key={product.id}>
                 <div className="row">
                   <h3>{product.name}</h3>
-                  <span className="price">{euro(product.price)}</span>
+
+                  <span className="price">
+                    {euro(product.price)}
+                  </span>
                 </div>
 
                 {product.optionGroups?.length ? (
@@ -259,7 +299,10 @@ export default function Page() {
                   <p className="small">Geen opties</p>
                 )}
 
-                <button className="btn" onClick={() => openProduct(product)}>
+                <button
+                  className="btn"
+                  onClick={() => openProduct(product)}
+                >
                   Toevoegen
                 </button>
               </article>
@@ -298,7 +341,10 @@ export default function Page() {
                 <div className="row">
                   <h2>Jouw bestelling</h2>
 
-                  <button className="btn secondary" onClick={() => setCartOpen(false)}>
+                  <button
+                    className="btn secondary"
+                    onClick={() => setCartOpen(false)}
+                  >
                     Sluiten
                   </button>
                 </div>
@@ -319,19 +365,37 @@ export default function Page() {
                       <div style={{ flex: 1 }}>
                         <span>
                           {item.quantity}x {item.productName}
+
                           {item.options.length
                             ? ' + ' + item.options.map(o => o.name).join(', ')
                             : ''}
                         </span>
-                        <div className="small">{euro(itemTotal(item))}</div>
+
+                        <div className="small">
+                          {euro(itemTotal(item))}
+                        </div>
                       </div>
 
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <button className="btn secondary" onClick={() => decreaseQuantity(idx)}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          gap: 8,
+                          alignItems: 'center'
+                        }}
+                      >
+                        <button
+                          className="btn secondary"
+                          onClick={() => decreaseQuantity(idx)}
+                        >
                           -
                         </button>
+
                         <strong>{item.quantity}</strong>
-                        <button className="btn" onClick={() => increaseQuantity(idx)}>
+
+                        <button
+                          className="btn"
+                          onClick={() => increaseQuantity(idx)}
+                        >
                           +
                         </button>
                       </div>
@@ -370,17 +434,25 @@ export default function Page() {
             {(activeProduct.optionGroups || []).map(group => (
               <div key={group.name}>
                 <h3>
-                  {group.name} <span className="small">max. {group.max || 1}</span>
+                  {group.name}{' '}
+                  <span className="small">
+                    max. {group.max || 1}
+                  </span>
                 </h3>
 
                 {group.options.map(option => {
-                  const checked = selectedOptions.some(o => o.name === option.name);
+                  const checked = selectedOptions.some(
+                    o => o.name === option.name
+                  );
 
                   return (
                     <label className="option" key={option.name}>
                       <span>
                         {option.name}{' '}
-                        <span className="price">{option.price ? euro(option.price) : ''}</span>
+
+                        <span className="price">
+                          {option.price ? euro(option.price) : ''}
+                        </span>
                       </span>
 
                       <input
@@ -388,7 +460,9 @@ export default function Page() {
                         checked={checked}
                         onChange={() => {
                           setSelectedOptions(prev => {
-                            if (checked) return prev.filter(o => o.name !== option.name);
+                            if (checked) {
+                              return prev.filter(o => o.name !== option.name);
+                            }
 
                             const currentFromGroup = prev.filter(o =>
                               group.options.some(go => go.name === o.name)
@@ -398,9 +472,11 @@ export default function Page() {
                               o => !group.options.some(go => go.name === o.name)
                             );
 
-                            return [...withoutGroup, ...currentFromGroup, option].slice(
-                              -(group.max || 1)
-                            );
+                            return [
+                              ...withoutGroup,
+                              ...currentFromGroup,
+                              option
+                            ].slice(-(group.max || 1));
                           });
                         }}
                       />
@@ -411,10 +487,17 @@ export default function Page() {
             ))}
 
             <div className="row" style={{ marginTop: 18 }}>
-              <button className="btn secondary" onClick={() => setActiveProduct(null)}>
+              <button
+                className="btn secondary"
+                onClick={() => setActiveProduct(null)}
+              >
                 Annuleren
               </button>
-              <button className="btn" onClick={addActiveProduct}>
+
+              <button
+                className="btn"
+                onClick={addActiveProduct}
+              >
                 Toevoegen
               </button>
             </div>
