@@ -38,11 +38,8 @@ export default function Page() {
 
   const products = useMemo(() => {
     return (menu?.products || []).filter(product => {
-      const categoryMatch =
-        category === 'Alle' || product.category === category;
-
-      const searchMatch =
-        product.name.toLowerCase().includes(search.toLowerCase());
+      const categoryMatch = category === 'Alle' || product.category === category;
+      const searchMatch = product.name.toLowerCase().includes(search.toLowerCase());
 
       return categoryMatch && searchMatch;
     });
@@ -70,6 +67,13 @@ export default function Page() {
     ]);
 
     setActiveProduct(null);
+
+    setTimeout(() => {
+      document.getElementById('bestelling')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }, 100);
   }
 
   function increaseQuantity(index: number) {
@@ -267,7 +271,14 @@ export default function Page() {
             ))}
           </section>
 
-          <section className="card" style={{ marginTop: 16 }}>
+          <section
+            className="card"
+            id="bestelling"
+            style={{
+              marginTop: 16,
+              scrollMarginTop: 100
+            }}
+          >
             <h2>Jouw bestelling</h2>
 
             {cart.length === 0 ? (
