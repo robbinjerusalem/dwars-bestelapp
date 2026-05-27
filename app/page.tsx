@@ -6,6 +6,8 @@ import { euro, itemTotal, orderTotal } from '../lib/money';
 
 type CartLine = OrderItem;
 
+const ADMIN_PIN = '7161';
+
 export default function Page() {
   const [menu, setMenu] = useState<Menu | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -49,14 +51,35 @@ export default function Page() {
 
   const products = useMemo(() => {
     return (menu?.products || []).filter(product => {
-      const categoryMatch = category === 'Alle' || product.category === category;
-      const searchMatch = product.name.toLowerCase().includes(search.toLowerCase());
+      const categoryMatch =
+        category === 'Alle' || product.category === category;
+
+      const searchMatch =
+        product.name.toLowerCase().includes(search.toLowerCase());
 
       return categoryMatch && searchMatch;
     });
   }, [menu, category, search]);
 
-  const cartTotal = cart.reduce((s, item) => s + itemTotal(item), 0);
+  const cartTotal = cart.reduce(
+    (s, item) => s + itemTotal(item),
+    0
+  );
+
+  function toggleAdmin() {
+    if (admin) {
+      setAdmin(false);
+      return;
+    }
+
+    const entered = prompt('Voer admin pincode in');
+
+    if (entered === ADMIN_PIN) {
+      setAdmin(true);
+    } else {
+      alert('Onjuiste pincode');
+    }
+  }
 
   function openProduct(product: Product) {
     setActiveProduct(product);
@@ -83,7 +106,9 @@ export default function Page() {
   function increaseQuantity(index: number) {
     setCart(prev =>
       prev.map((item, i) =>
-        i === index ? { ...item, quantity: item.quantity + 1 } : item
+        i === index
+          ? { ...item, quantity: item.quantity + 1 }
+          : item
       )
     );
   }
@@ -92,7 +117,9 @@ export default function Page() {
     setCart(prev =>
       prev
         .map((item, i) =>
-          i === index ? { ...item, quantity: item.quantity - 1 } : item
+          i === index
+            ? { ...item, quantity: item.quantity - 1 }
+            : item
         )
         .filter(item => item.quantity > 0)
     );
@@ -105,11 +132,16 @@ export default function Page() {
 
     const res = await fetch('/api/orders', {
       method: 'POST',
-      body: JSON.stringify({ personName: name, items: cart })
+      body: JSON.stringify({
+        personName: name,
+        items: cart
+      })
     });
 
     if (!res.ok) {
-      return alert((await res.json()).error || 'Opslaan mislukt');
+      return alert(
+        (await res.json()).error || 'Opslaan mislukt'
+      );
     }
 
     setCart([]);
@@ -121,35 +153,53 @@ export default function Page() {
   }
 
   async function clearOrders() {
-    if (!confirm('Alle bestellingen wissen voor een nieuwe ronde?')) return;
+    if (
+      !confirm(
+        'Alle bestellingen wissen voor een nieuwe ronde?'
+      )
+    ) {
+      return;
+    }
 
-    await fetch('/api/orders', { method: 'DELETE' });
+    await fetch('/api/orders', {
+      method: 'DELETE'
+    });
 
     await load();
   }
 
   const productTotals = useMemo(() => {
-    const map = new Map<string, { label: string; count: number }>();
+    const map = new Map<
+      string,
+      { label: string; count: number }
+    >();
 
     for (const order of orders) {
       for (const item of order.items) {
         const optionText = item.options?.length
-          ? ' + ' + item.options.map(o => o.name).join(', ')
+          ? ' + ' +
+            item.options.map(o => o.name).join(', ')
           : '';
 
         const key = item.productName + optionText;
 
         map.set(key, {
           label: key,
-          count: (map.get(key)?.count || 0) + item.quantity
+          count:
+            (map.get(key)?.count || 0) +
+            item.quantity
         });
       }
     }
 
-    return [...map.values()].sort((a, b) => a.label.localeCompare(b.label));
+    return [...map.values()].sort((a, b) =>
+      a.label.localeCompare(b.label)
+    );
   }, [orders]);
 
-  if (!menu) return <main className="page">Laden...</main>;
+  if (!menu) {
+    return <main className="page">Laden...</main>;
+  }
 
   return (
     <main className="page">
@@ -158,13 +208,17 @@ export default function Page() {
           <h1>Dwars Bestelapp</h1>
 
           <p className="small">
-            Prijzen bijgewerkt: {new Date(menu.updatedAt).toLocaleString('nl-NL')} · bron: {menu.source}
+            Prijzen bijgewerkt:{' '}
+            {new Date(
+              menu.updatedAt
+            ).toLocaleString('nl-NL')}{' '}
+            · bron: {menu.source}
           </p>
         </div>
 
         <button
           className="btn secondary"
-          onClick={() => setAdmin(!admin)}
+          onClick={toggleAdmin}
         >
           {admin ? 'Bestellen' : 'Admin overzicht'}
         </button>
@@ -202,20 +256,30 @@ export default function Page() {
 
                   <td>
                     {order.items
-                      .map(i =>
-                        `${i.quantity}x ${i.productName}${
-                          i.options?.length
-                            ? ' + ' + i.options.map(o => o.name).join(', ')
-                            : ''
-                        }`
+                      .map(
+                        i =>
+                          `${i.quantity}x ${
+                            i.productName
+                          }${
+                            i.options?.length
+                              ? ' + ' +
+                                i.options
+                                  .map(o => o.name)
+                                  .join(', ')
+                              : ''
+                          }`
                       )
                       .join('; ')}
                   </td>
 
-                  <td>{euro(orderTotal(order))}</td>
+                  <td>
+                    {euro(orderTotal(order))}
+                  </td>
 
                   <td>
-                    Hoi {order.personName}, jouw Dwars-bestelling was {euro(orderTotal(order))}.
+                    Hoi {order.personName}, jouw
+                    Dwars-bestelling was{' '}
+                    {euro(orderTotal(order))}.
                   </td>
                 </tr>
               ))}
@@ -243,12 +307,21 @@ export default function Page() {
           </table>
 
           <h3>
-            Eindtotaal: {euro(orders.reduce((s, o) => s + orderTotal(o), 0))}
+            Eindtotaal:{' '}
+            {euro(
+              orders.reduce(
+                (s, o) => s + orderTotal(o),
+                0
+              )
+            )}
           </h3>
         </section>
       ) : (
         <>
-          <section className="card" style={{ marginBottom: 16 }}>
+          <section
+            className="card"
+            style={{ marginBottom: 16 }}
+          >
             <label>Voor- en achternaam</label>
 
             <input
@@ -259,7 +332,10 @@ export default function Page() {
             />
           </section>
 
-          <section className="card" style={{ marginBottom: 16 }}>
+          <section
+            className="card"
+            style={{ marginBottom: 16 }}
+          >
             <label>Zoeken</label>
 
             <input
@@ -274,7 +350,10 @@ export default function Page() {
             {categories.map(c => (
               <button
                 key={c}
-                className={'tab ' + (category === c ? 'active' : '')}
+                className={
+                  'tab ' +
+                  (category === c ? 'active' : '')
+                }
                 onClick={() => setCategory(c)}
               >
                 {c}
@@ -284,7 +363,10 @@ export default function Page() {
 
           <section className="grid">
             {products.map(product => (
-              <article className="card product" key={product.id}>
+              <article
+                className="card product"
+                key={product.id}
+              >
                 <div className="row">
                   <h3>{product.name}</h3>
 
@@ -294,14 +376,20 @@ export default function Page() {
                 </div>
 
                 {product.optionGroups?.length ? (
-                  <p className="small">Met opties/sauzen</p>
+                  <p className="small">
+                    Met opties/sauzen
+                  </p>
                 ) : (
-                  <p className="small">Geen opties</p>
+                  <p className="small">
+                    Geen opties
+                  </p>
                 )}
 
                 <button
                   className="btn"
-                  onClick={() => openProduct(product)}
+                  onClick={() =>
+                    openProduct(product)
+                  }
                 >
                   Toevoegen
                 </button>
@@ -326,11 +414,15 @@ export default function Page() {
                   padding: '16px',
                   borderRadius: 18,
                   fontSize: 18,
-                  boxShadow: '0 10px 30px rgba(0,0,0,.2)'
+                  boxShadow:
+                    '0 10px 30px rgba(0,0,0,.2)'
                 }}
-                onClick={() => setCartOpen(true)}
+                onClick={() =>
+                  setCartOpen(true)
+                }
               >
-                Bekijk bestelling ({euro(cartTotal)})
+                Bekijk bestelling (
+                {euro(cartTotal)})
               </button>
             </div>
           )}
@@ -343,31 +435,39 @@ export default function Page() {
 
                   <button
                     className="btn secondary"
-                    onClick={() => setCartOpen(false)}
+                    onClick={() =>
+                      setCartOpen(false)
+                    }
                   >
                     Sluiten
                   </button>
                 </div>
 
                 {cart.length === 0 ? (
-                  <p className="small">Nog niets gekozen.</p>
+                  <p className="small">
+                    Nog niets gekozen.
+                  </p>
                 ) : (
                   cart.map((item, idx) => (
                     <div
                       className="row"
                       key={idx}
                       style={{
-                        borderBottom: '1px solid #eee',
+                        borderBottom:
+                          '1px solid #eee',
                         padding: '10px 0',
                         gap: 12
                       }}
                     >
                       <div style={{ flex: 1 }}>
                         <span>
-                          {item.quantity}x {item.productName}
-
+                          {item.quantity}x{' '}
+                          {item.productName}
                           {item.options.length
-                            ? ' + ' + item.options.map(o => o.name).join(', ')
+                            ? ' + ' +
+                              item.options
+                                .map(o => o.name)
+                                .join(', ')
                             : ''}
                         </span>
 
@@ -385,16 +485,26 @@ export default function Page() {
                       >
                         <button
                           className="btn secondary"
-                          onClick={() => decreaseQuantity(idx)}
+                          onClick={() =>
+                            decreaseQuantity(
+                              idx
+                            )
+                          }
                         >
                           -
                         </button>
 
-                        <strong>{item.quantity}</strong>
+                        <strong>
+                          {item.quantity}
+                        </strong>
 
                         <button
                           className="btn"
-                          onClick={() => increaseQuantity(idx)}
+                          onClick={() =>
+                            increaseQuantity(
+                              idx
+                            )
+                          }
                         >
                           +
                         </button>
@@ -406,12 +516,18 @@ export default function Page() {
                 <div className="totalBox">
                   <div className="row">
                     <strong>Totaal</strong>
-                    <strong>{euro(cartTotal)}</strong>
+
+                    <strong>
+                      {euro(cartTotal)}
+                    </strong>
                   </div>
 
                   <button
                     className="btn"
-                    style={{ width: '100%', marginTop: 12 }}
+                    style={{
+                      width: '100%',
+                      marginTop: 12
+                    }}
                     onClick={submitOrder}
                   >
                     Bestelling doorgeven
@@ -428,68 +544,107 @@ export default function Page() {
           <div className="modal">
             <div className="row">
               <h2>{activeProduct.name}</h2>
-              <strong>{euro(activeProduct.price)}</strong>
+
+              <strong>
+                {euro(activeProduct.price)}
+              </strong>
             </div>
 
-            {(activeProduct.optionGroups || []).map(group => (
-              <div key={group.name}>
-                <h3>
-                  {group.name}{' '}
-                  <span className="small">
-                    max. {group.max || 1}
-                  </span>
-                </h3>
+            {(activeProduct.optionGroups || []).map(
+              group => (
+                <div key={group.name}>
+                  <h3>
+                    {group.name}{' '}
+                    <span className="small">
+                      max. {group.max || 1}
+                    </span>
+                  </h3>
 
-                {group.options.map(option => {
-                  const checked = selectedOptions.some(
-                    o => o.name === option.name
-                  );
+                  {group.options.map(option => {
+                    const checked =
+                      selectedOptions.some(
+                        o =>
+                          o.name === option.name
+                      );
 
-                  return (
-                    <label className="option" key={option.name}>
-                      <span>
-                        {option.name}{' '}
+                    return (
+                      <label
+                        className="option"
+                        key={option.name}
+                      >
+                        <span>
+                          {option.name}{' '}
 
-                        <span className="price">
-                          {option.price ? euro(option.price) : ''}
+                          <span className="price">
+                            {option.price
+                              ? euro(
+                                  option.price
+                                )
+                              : ''}
+                          </span>
                         </span>
-                      </span>
 
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => {
-                          setSelectedOptions(prev => {
-                            if (checked) {
-                              return prev.filter(o => o.name !== option.name);
-                            }
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => {
+                            setSelectedOptions(
+                              prev => {
+                                if (checked) {
+                                  return prev.filter(
+                                    o =>
+                                      o.name !==
+                                      option.name
+                                  );
+                                }
 
-                            const currentFromGroup = prev.filter(o =>
-                              group.options.some(go => go.name === o.name)
+                                const currentFromGroup =
+                                  prev.filter(
+                                    o =>
+                                      group.options.some(
+                                        go =>
+                                          go.name ===
+                                          o.name
+                                      )
+                                  );
+
+                                const withoutGroup =
+                                  prev.filter(
+                                    o =>
+                                      !group.options.some(
+                                        go =>
+                                          go.name ===
+                                          o.name
+                                      )
+                                  );
+
+                                return [
+                                  ...withoutGroup,
+                                  ...currentFromGroup,
+                                  option
+                                ].slice(
+                                  -(group.max || 1)
+                                );
+                              }
                             );
+                          }}
+                        />
+                      </label>
+                    );
+                  })}
+                </div>
+              )
+            )}
 
-                            const withoutGroup = prev.filter(
-                              o => !group.options.some(go => go.name === o.name)
-                            );
-
-                            return [
-                              ...withoutGroup,
-                              ...currentFromGroup,
-                              option
-                            ].slice(-(group.max || 1));
-                          });
-                        }}
-                      />
-                    </label>
-                  );
-                })}
-              </div>
-            ))}
-
-            <div className="row" style={{ marginTop: 18 }}>
+            <div
+              className="row"
+              style={{ marginTop: 18 }}
+            >
               <button
                 className="btn secondary"
-                onClick={() => setActiveProduct(null)}
+                onClick={() =>
+                  setActiveProduct(null)
+                }
               >
                 Annuleren
               </button>
