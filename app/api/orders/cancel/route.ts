@@ -32,41 +32,11 @@ function getCurrentWeekKey() {
   return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
 }
 
-function mapOrder(order: any) {
-  return {
-    id: order.id,
-    personName: order.person_name,
-    createdAt: order.created_at,
-    weekKey: order.week_key,
-    items: order.items
-  };
-}
-
-export async function GET() {
-  const weekKey = getCurrentWeekKey();
-
-  const { data, error } = await supabase
-    .from('orders')
-    .select('*')
-    .eq('week_key', weekKey)
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
-    );
-  }
-
-  return NextResponse.json((data || []).map(mapOrder));
-}
-
 export async function POST(request: Request) {
   const body = await request.json();
 
   const weekKey = getCurrentWeekKey();
   const personName = String(body.personName || '').trim();
-  const items = body.items || [];
 
   if (!personName) {
     return NextResponse.json(
@@ -75,47 +45,11 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!items.length) {
-    return NextResponse.json(
-      { error: 'Geen producten gekozen' },
-      { status: 400 }
-    );
-  }
-
-  const { data, error } = await supabase
-  .from('orders')
-  .upsert(
-    [
-      {
-        person_name: personName,
-        items,
-        week_key: weekKey
-      }
-    ],
-    {
-      onConflict: 'person_name,week_key'
-    }
-  )
-  .select()
-  .single();
-
-  if (error) {
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
-    );
-  }
-
-  return NextResponse.json(mapOrder(data));
-}
-
-export async function DELETE() {
-  const weekKey = getCurrentWeekKey();
-
   const { error } = await supabase
     .from('orders')
     .delete()
-    .eq('week_key', weekKey);
+    .eq('week_key', weekKey)
+    .eq('person_name', personName);
 
   if (error) {
     return NextResponse.json(

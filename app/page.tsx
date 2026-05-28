@@ -20,6 +20,7 @@ export default function Page() {
   const [selectedOptions, setSelectedOptions] = useState<MenuOption[]>([]);
   const [admin, setAdmin] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [myOrder, setMyOrder] = useState<Order | null>(null);
 
   async function load() {
     const [m, o] = await Promise.all([
@@ -41,6 +42,21 @@ export default function Page() {
   useEffect(() => {
     localStorage.setItem('dwars-name', name);
   }, [name]);
+
+  useEffect(() => {
+    if (!name.trim()) {
+      setMyOrder(null);
+      return;
+    }
+
+    const found = orders.find(
+      order =>
+        order.personName.toLowerCase().trim() ===
+        name.toLowerCase().trim()
+    );
+
+    setMyOrder(found || null);
+  }, [name, orders]);
 
   const categories = useMemo(
     () => ['Alle', ...Array.from(new Set(menu?.products.map(p => p.category) || []))],
@@ -158,6 +174,52 @@ export default function Page() {
     setCart(prev => prev.filter((_, i) => i !== index));
   }
 
+  function editMyOrder() {
+  if (!myOrder) return;
+
+  setCart(myOrder.items);
+
+  // sluit winkelwagen zodat gebruiker verder kan bestellen
+  setCartOpen(false);
+
+  // scroll naar menu
+  window.scrollTo({
+    top: 0,
+    behavior: 'smooth'
+  });
+
+  showMessage(
+    'Je bestelling wordt gewijzigd — voeg extra producten toe en klik daarna opnieuw op bestellen',
+    3500
+  );
+}
+
+  async function cancelMyOrder() {
+    if (!name.trim()) return;
+
+    if (!confirm('Weet je zeker dat je jouw bestelling wilt annuleren?')) {
+      return;
+    }
+
+    const res = await fetch('/api/orders/cancel', {
+      method: 'POST',
+      body: JSON.stringify({
+        personName: name
+      })
+    });
+
+    if (!res.ok) {
+      return alert((await res.json()).error || 'Annuleren mislukt');
+    }
+
+    setCart([]);
+    setCartOpen(false);
+
+    await load();
+
+    showMessage('Bestelling geannuleerd');
+  }
+
   async function submitOrder() {
     if (!name.trim()) {
       return alert('Vul je voor- en achternaam in');
@@ -196,7 +258,14 @@ export default function Page() {
   }
 
   const productTotals = useMemo(() => {
-    const map = new Map<string, { label: string; count: number }>();
+    const map = new Map<
+      string,
+      {
+        label: string;
+        count: number;
+        orderIndex: number;
+      }
+    >();
 
     for (const order of orders) {
       for (const item of order.items) {
@@ -206,18 +275,23 @@ export default function Page() {
 
         const key = item.productName + optionText;
 
+        const menuIndex =
+          menu?.products.findIndex(
+            p => p.name === item.productName
+          ) ?? 9999;
+
         map.set(key, {
           label: key,
-          count: (map.get(key)?.count || 0) + item.quantity
+          count: (map.get(key)?.count || 0) + item.quantity,
+          orderIndex: menuIndex
         });
       }
     }
 
-    return [...map.values()].sort((a, b) => {
-      if (b.count !== a.count) return b.count - a.count;
-      return a.label.localeCompare(b.label);
-    });
-  }, [orders]);
+    return [...map.values()].sort(
+      (a, b) => a.orderIndex - b.orderIndex
+    );
+  }, [orders, menu]);
 
   if (!menu) {
     return <main className="page">Laden...</main>;
@@ -380,6 +454,65 @@ export default function Page() {
               placeholder="Bijv. Jan Jansen"
             />
           </section>
+
+          {myOrder && (
+            <section
+              className="card"
+              style={{
+                marginBottom: 16,
+                border: '2px solid #16a34a'
+              }}
+            >
+              <div className="row">
+                <div>
+                  <h3 style={{ margin: 0 }}>✅ Jouw huidige bestelling</h3>
+
+                  <div className="small">
+                    Laatst opgeslagen:{' '}
+                    {new Date(myOrder.createdAt).toLocaleString('nl-NL')}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: 8,
+                    flexWrap: 'wrap',
+                    justifyContent: 'flex-end'
+                  }}
+                >
+                  <button className="btn secondary" onClick={editMyOrder}>
+                    Wijzigen
+                  </button>
+
+                  <button className="btn danger" onClick={cancelMyOrder}>
+                    Annuleren
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 14 }}>
+                {myOrder.items.map((item, idx) => (
+                  <div key={idx} style={{ marginBottom: 10 }}>
+                    <strong>
+                      {item.quantity}x {item.productName}
+                    </strong>
+
+                    {item.options?.length ? (
+                      <div className="small">
+                        {item.options.map(o => o.name).join(', ')}
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+
+              <div className="row" style={{ marginTop: 12 }}>
+                <strong>Totaal</strong>
+                <strong>{euro(orderTotal(myOrder))}</strong>
+              </div>
+            </section>
+          )}
 
           <section className="card" style={{ marginBottom: 16 }}>
             <label>Zoeken</label>
