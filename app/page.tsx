@@ -92,6 +92,25 @@ export default function Page() {
     setSelectedOptions([]);
   }
 
+  function addDirectProduct(product: Product) {
+    setCart(prev => [
+      ...prev,
+      {
+        productId: product.id,
+        productName: product.name,
+        quantity: 1,
+        basePrice: product.price,
+        options: []
+      }
+    ]);
+
+    setSuccessMessage(`${product.name} toegevoegd`);
+
+    setTimeout(() => {
+      setSuccessMessage('');
+    }, 1800);
+  }
+
   function addActiveProduct() {
     if (!activeProduct) return;
 
@@ -424,9 +443,17 @@ export default function Page() {
 
                 <button
                   className="btn"
-                  onClick={() =>
-                    openProduct(product)
-                  }
+                  onClick={() => {
+
+                    // Producten MET opties -> popup
+                    if (product.optionGroups?.length) {
+                      openProduct(product);
+                      return;
+                    }
+
+                    // Producten zonder opties -> direct toevoegen
+                    addDirectProduct(product);
+                  }}
                 >
                   Toevoegen
                 </button>
