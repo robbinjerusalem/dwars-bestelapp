@@ -67,6 +67,11 @@ export default function Page() {
     0
   );
 
+  const cartItemCount = cart.reduce(
+    (s, item) => s + item.quantity,
+    0
+  );
+
   function toggleAdmin() {
     if (admin) {
       setAdmin(false);
@@ -453,8 +458,7 @@ export default function Page() {
                   setCartOpen(true)
                 }
               >
-                Bekijk bestelling (
-                {euro(cartTotal)})
+                Bekijk bestelling ({cartItemCount} {cartItemCount === 1 ? 'item' : 'items'} · {euro(cartTotal)})
               </button>
             </div>
           )}
