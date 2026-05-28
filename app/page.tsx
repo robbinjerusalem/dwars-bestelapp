@@ -19,6 +19,7 @@ export default function Page() {
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
   const [selectedOptions, setSelectedOptions] = useState<MenuOption[]>([]);
   const [admin, setAdmin] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   async function load() {
     const [m, o] = await Promise.all([
@@ -101,6 +102,12 @@ export default function Page() {
     ]);
 
     setActiveProduct(null);
+
+    setSuccessMessage(`${activeProduct.name} toegevoegd`);
+
+    setTimeout(() => {
+      setSuccessMessage('');
+    }, 1800);
   }
 
   function increaseQuantity(index: number) {
@@ -149,7 +156,11 @@ export default function Page() {
 
     await load();
 
-    alert('Bestelling opgeslagen!');
+    setSuccessMessage('✅ Bestelling opgeslagen!');
+
+    setTimeout(() => {
+      setSuccessMessage('');
+    }, 2500);
   }
 
   async function clearOrders() {
@@ -203,6 +214,27 @@ export default function Page() {
 
   return (
     <main className="page">
+
+      {successMessage && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 20,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: '#16a34a',
+            color: 'white',
+            padding: '14px 20px',
+            borderRadius: 14,
+            zIndex: 999,
+            fontWeight: 700,
+            boxShadow: '0 10px 30px rgba(0,0,0,.2)'
+          }}
+        >
+          {successMessage}
+        </div>
+      )}
+
       <div className="header">
         <div>
           <h1>Dwars Bestelapp</h1>
