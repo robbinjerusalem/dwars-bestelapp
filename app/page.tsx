@@ -35,10 +35,7 @@ export default function Page() {
     load();
 
     const savedName = localStorage.getItem('dwars-name');
-
-    if (savedName) {
-      setName(savedName);
-    }
+    if (savedName) setName(savedName);
   }, []);
 
   useEffect(() => {
@@ -52,25 +49,24 @@ export default function Page() {
 
   const products = useMemo(() => {
     return (menu?.products || []).filter(product => {
-      const categoryMatch =
-        category === 'Alle' || product.category === category;
-
-      const searchMatch =
-        product.name.toLowerCase().includes(search.toLowerCase());
+      const categoryMatch = category === 'Alle' || product.category === category;
+      const searchMatch = product.name.toLowerCase().includes(search.toLowerCase());
 
       return categoryMatch && searchMatch;
     });
   }, [menu, category, search]);
 
-  const cartTotal = cart.reduce(
-    (s, item) => s + itemTotal(item),
-    0
-  );
+  const cartTotal = cart.reduce((s, item) => s + itemTotal(item), 0);
 
-  const cartItemCount = cart.reduce(
-    (s, item) => s + item.quantity,
-    0
-  );
+  const cartItemCount = cart.reduce((s, item) => s + item.quantity, 0);
+
+  function showMessage(message: string, duration = 1800) {
+    setSuccessMessage(message);
+
+    setTimeout(() => {
+      setSuccessMessage('');
+    }, duration);
+  }
 
   function toggleAdmin() {
     if (admin) {
@@ -104,11 +100,7 @@ export default function Page() {
       }
     ]);
 
-    setSuccessMessage(`${product.name} toegevoegd`);
-
-    setTimeout(() => {
-      setSuccessMessage('');
-    }, 1800);
+    showMessage(`${product.name} toegevoegd`);
   }
 
   function addActiveProduct() {
@@ -126,20 +118,13 @@ export default function Page() {
     ]);
 
     setActiveProduct(null);
-
-    setSuccessMessage(`${activeProduct.name} toegevoegd`);
-
-    setTimeout(() => {
-      setSuccessMessage('');
-    }, 1800);
+    showMessage(`${activeProduct.name} toegevoegd`);
   }
 
   function increaseQuantity(index: number) {
     setCart(prev =>
       prev.map((item, i) =>
-        i === index
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
+        i === index ? { ...item, quantity: item.quantity + 1 } : item
       )
     );
   }
@@ -148,12 +133,14 @@ export default function Page() {
     setCart(prev =>
       prev
         .map((item, i) =>
-          i === index
-            ? { ...item, quantity: item.quantity - 1 }
-            : item
+          i === index ? { ...item, quantity: item.quantity - 1 } : item
         )
         .filter(item => item.quantity > 0)
     );
+  }
+
+  function removeItem(index: number) {
+    setCart(prev => prev.filter((_, i) => i !== index));
   }
 
   async function submitOrder() {
@@ -170,9 +157,7 @@ export default function Page() {
     });
 
     if (!res.ok) {
-      return alert(
-        (await res.json()).error || 'Opslaan mislukt'
-      );
+      return alert((await res.json()).error || 'Opslaan mislukt');
     }
 
     setCart([]);
@@ -180,19 +165,11 @@ export default function Page() {
 
     await load();
 
-    setSuccessMessage('✅ Bestelling opgeslagen!');
-
-    setTimeout(() => {
-      setSuccessMessage('');
-    }, 2500);
+    showMessage('✅ Bestelling opgeslagen!', 2500);
   }
 
   async function clearOrders() {
-    if (
-      !confirm(
-        'Alle bestellingen wissen voor een nieuwe ronde?'
-      )
-    ) {
+    if (!confirm('Alle bestellingen wissen voor een nieuwe ronde?')) {
       return;
     }
 
@@ -204,40 +181,27 @@ export default function Page() {
   }
 
   const productTotals = useMemo(() => {
-    const map = new Map<
-      string,
-      { label: string; count: number }
-    >();
+    const map = new Map<string, { label: string; count: number }>();
 
     for (const order of orders) {
       for (const item of order.items) {
         const optionText = item.options?.length
-          ? ' + ' +
-            item.options.map(o => o.name).join(', ')
+          ? ' + ' + item.options.map(o => o.name).join(', ')
           : '';
 
         const key = item.productName + optionText;
 
         map.set(key, {
           label: key,
-          count:
-            (map.get(key)?.count || 0) +
-            item.quantity
+          count: (map.get(key)?.count || 0) + item.quantity
         });
       }
     }
 
     return [...map.values()].sort((a, b) => {
-
-  // Hoogste aantallen eerst
-  if (b.count !== a.count) {
-    return b.count - a.count;
-  }
-
-  // Daarna alfabetisch
-  return a.label.localeCompare(b.label);
-
-});
+      if (b.count !== a.count) return b.count - a.count;
+      return a.label.localeCompare(b.label);
+    });
   }, [orders]);
 
   if (!menu) {
@@ -246,7 +210,6 @@ export default function Page() {
 
   return (
     <main className="page">
-
       {successMessage && (
         <div
           style={{
@@ -272,18 +235,12 @@ export default function Page() {
           <h1>Dwars Bestelapp</h1>
 
           <p className="small">
-            Prijzen bijgewerkt:{' '}
-            {new Date(
-              menu.updatedAt
-            ).toLocaleString('nl-NL')}{' '}
-            · bron: {menu.source}
+            Prijzen bijgewerkt: {new Date(menu.updatedAt).toLocaleString('nl-NL')} · bron:{' '}
+            {menu.source}
           </p>
         </div>
 
-        <button
-          className="btn secondary"
-          onClick={toggleAdmin}
-        >
+        <button className="btn secondary" onClick={toggleAdmin}>
           {admin ? 'Bestellen' : 'Admin overzicht'}
         </button>
       </div>
@@ -293,12 +250,15 @@ export default function Page() {
           <div className="row">
             <h2>Overzicht</h2>
 
-            <button
-              className="btn danger"
-              onClick={clearOrders}
-            >
-              Nieuwe ronde / wissen
-            </button>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button className="btn secondary" onClick={load}>
+                Vernieuwen
+              </button>
+
+              <button className="btn danger" onClick={clearOrders}>
+                Nieuwe ronde / wissen
+              </button>
+            </div>
           </div>
 
           <h3>Per persoon</h3>
@@ -322,27 +282,19 @@ export default function Page() {
                     {order.items
                       .map(
                         i =>
-                          `${i.quantity}x ${
-                            i.productName
-                          }${
+                          `${i.quantity}x ${i.productName}${
                             i.options?.length
-                              ? ' + ' +
-                                i.options
-                                  .map(o => o.name)
-                                  .join(', ')
+                              ? ' + ' + i.options.map(o => o.name).join(', ')
                               : ''
                           }`
                       )
                       .join('; ')}
                   </td>
 
-                  <td>
-                    {euro(orderTotal(order))}
-                  </td>
+                  <td>{euro(orderTotal(order))}</td>
 
                   <td>
-                    Hoi {order.personName}, jouw
-                    Dwars-bestelling was{' '}
+                    Hoi {order.personName}, jouw Dwars-bestelling was{' '}
                     {euro(orderTotal(order))}.
                   </td>
                 </tr>
@@ -370,22 +322,11 @@ export default function Page() {
             </tbody>
           </table>
 
-          <h3>
-            Eindtotaal:{' '}
-            {euro(
-              orders.reduce(
-                (s, o) => s + orderTotal(o),
-                0
-              )
-            )}
-          </h3>
+          <h3>Eindtotaal: {euro(orders.reduce((s, o) => s + orderTotal(o), 0))}</h3>
         </section>
       ) : (
         <>
-          <section
-            className="card"
-            style={{ marginBottom: 16 }}
-          >
+          <section className="card" style={{ marginBottom: 16 }}>
             <label>Voor- en achternaam</label>
 
             <input
@@ -396,10 +337,7 @@ export default function Page() {
             />
           </section>
 
-          <section
-            className="card"
-            style={{ marginBottom: 16 }}
-          >
+          <section className="card" style={{ marginBottom: 16 }}>
             <label>Zoeken</label>
 
             <input
@@ -414,10 +352,7 @@ export default function Page() {
             {categories.map(c => (
               <button
                 key={c}
-                className={
-                  'tab ' +
-                  (category === c ? 'active' : '')
-                }
+                className={'tab ' + (category === c ? 'active' : '')}
                 onClick={() => setCategory(c)}
               >
                 {c}
@@ -427,43 +362,31 @@ export default function Page() {
 
           <section className="grid">
             {products.map(product => (
-              <article
-                className="card product"
-                key={product.id}
-              >
+              <article className="card product" key={product.id}>
                 <div className="row">
                   <h3>{product.name}</h3>
 
-                  <span className="price">
-                    {euro(product.price)}
-                  </span>
+                  <span className="price">{euro(product.price)}</span>
                 </div>
 
                 {product.optionGroups?.length ? (
-                  <p className="small">
-                    Met opties/sauzen
-                  </p>
+                  <p className="small">Met opties/sauzen</p>
                 ) : (
-                  <p className="small">
-                    Geen opties
-                  </p>
+                  <p className="small">Geen opties</p>
                 )}
 
                 <button
                   className="btn"
                   onClick={() => {
-
-                    // Producten MET opties -> popup
                     if (product.optionGroups?.length) {
                       openProduct(product);
                       return;
                     }
 
-                    // Producten zonder opties -> direct toevoegen
                     addDirectProduct(product);
                   }}
                 >
-                  Toevoegen
+                  {product.optionGroups?.length ? 'Kies opties' : 'Direct toevoegen'}
                 </button>
               </article>
             ))}
@@ -486,14 +409,12 @@ export default function Page() {
                   padding: '16px',
                   borderRadius: 18,
                   fontSize: 18,
-                  boxShadow:
-                    '0 10px 30px rgba(0,0,0,.2)'
+                  boxShadow: '0 10px 30px rgba(0,0,0,.2)'
                 }}
-                onClick={() =>
-                  setCartOpen(true)
-                }
+                onClick={() => setCartOpen(true)}
               >
-                Bekijk bestelling ({cartItemCount} {cartItemCount === 1 ? 'item' : 'items'} · {euro(cartTotal)})
+                Bekijk bestelling ({cartItemCount} {cartItemCount === 1 ? 'item' : 'items'} ·{' '}
+                {euro(cartTotal)})
               </button>
             </div>
           )}
@@ -504,79 +425,55 @@ export default function Page() {
                 <div className="row">
                   <h2>Jouw bestelling</h2>
 
-                  <button
-                    className="btn secondary"
-                    onClick={() =>
-                      setCartOpen(false)
-                    }
-                  >
+                  <button className="btn secondary" onClick={() => setCartOpen(false)}>
                     Sluiten
                   </button>
                 </div>
 
                 {cart.length === 0 ? (
-                  <p className="small">
-                    Nog niets gekozen.
-                  </p>
+                  <p className="small">Nog niets gekozen.</p>
                 ) : (
                   cart.map((item, idx) => (
                     <div
                       className="row"
                       key={idx}
                       style={{
-                        borderBottom:
-                          '1px solid #eee',
+                        borderBottom: '1px solid #eee',
                         padding: '10px 0',
                         gap: 12
                       }}
                     >
                       <div style={{ flex: 1 }}>
                         <span>
-                          {item.quantity}x{' '}
-                          {item.productName}
+                          {item.quantity}x {item.productName}
                           {item.options.length
-                            ? ' + ' +
-                              item.options
-                                .map(o => o.name)
-                                .join(', ')
+                            ? ' + ' + item.options.map(o => o.name).join(', ')
                             : ''}
                         </span>
 
-                        <div className="small">
-                          {euro(itemTotal(item))}
-                        </div>
+                        <div className="small">{euro(itemTotal(item))}</div>
                       </div>
 
                       <div
                         style={{
                           display: 'flex',
                           gap: 8,
-                          alignItems: 'center'
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                          justifyContent: 'flex-end'
                         }}
                       >
-                        <button
-                          className="btn secondary"
-                          onClick={() =>
-                            decreaseQuantity(
-                              idx
-                            )
-                          }
-                        >
+                        <button className="btn danger" onClick={() => removeItem(idx)}>
+                          🗑
+                        </button>
+
+                        <button className="btn secondary" onClick={() => decreaseQuantity(idx)}>
                           -
                         </button>
 
-                        <strong>
-                          {item.quantity}
-                        </strong>
+                        <strong>{item.quantity}</strong>
 
-                        <button
-                          className="btn"
-                          onClick={() =>
-                            increaseQuantity(
-                              idx
-                            )
-                          }
-                        >
+                        <button className="btn" onClick={() => increaseQuantity(idx)}>
                           +
                         </button>
                       </div>
@@ -585,12 +482,19 @@ export default function Page() {
                 )}
 
                 <div className="totalBox">
+                  <div style={{ marginBottom: 12 }}>
+                    <button
+                      className="btn danger"
+                      style={{ width: '100%' }}
+                      onClick={() => setCart([])}
+                    >
+                      Winkelwagen leegmaken
+                    </button>
+                  </div>
+
                   <div className="row">
                     <strong>Totaal</strong>
-
-                    <strong>
-                      {euro(cartTotal)}
-                    </strong>
+                    <strong>{euro(cartTotal)}</strong>
                   </div>
 
                   <button
@@ -615,115 +519,62 @@ export default function Page() {
           <div className="modal">
             <div className="row">
               <h2>{activeProduct.name}</h2>
-
-              <strong>
-                {euro(activeProduct.price)}
-              </strong>
+              <strong>{euro(activeProduct.price)}</strong>
             </div>
 
-            {(activeProduct.optionGroups || []).map(
-              group => (
-                <div key={group.name}>
-                  <h3>
-                    {group.name}{' '}
-                    <span className="small">
-                      max. {group.max || 1}
-                    </span>
-                  </h3>
+            {(activeProduct.optionGroups || []).map(group => (
+              <div key={group.name}>
+                <h3>
+                  {group.name} <span className="small">max. {group.max || 1}</span>
+                </h3>
 
-                  {group.options.map(option => {
-                    const checked =
-                      selectedOptions.some(
-                        o =>
-                          o.name === option.name
-                      );
+                {group.options.map(option => {
+                  const checked = selectedOptions.some(o => o.name === option.name);
 
-                    return (
-                      <label
-                        className="option"
-                        key={option.name}
-                      >
-                        <span>
-                          {option.name}{' '}
-
-                          <span className="price">
-                            {option.price
-                              ? euro(
-                                  option.price
-                                )
-                              : ''}
-                          </span>
+                  return (
+                    <label className="option" key={option.name}>
+                      <span>
+                        {option.name}{' '}
+                        <span className="price">
+                          {option.price ? euro(option.price) : ''}
                         </span>
+                      </span>
 
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => {
-                            setSelectedOptions(
-                              prev => {
-                                if (checked) {
-                                  return prev.filter(
-                                    o =>
-                                      o.name !==
-                                      option.name
-                                  );
-                                }
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => {
+                          setSelectedOptions(prev => {
+                            if (checked) {
+                              return prev.filter(o => o.name !== option.name);
+                            }
 
-                                const currentFromGroup =
-                                  prev.filter(
-                                    o =>
-                                      group.options.some(
-                                        go =>
-                                          go.name ===
-                                          o.name
-                                      )
-                                  );
-
-                                const withoutGroup =
-                                  prev.filter(
-                                    o =>
-                                      !group.options.some(
-                                        go =>
-                                          go.name ===
-                                          o.name
-                                      )
-                                  );
-
-                                return [
-                                  ...withoutGroup,
-                                  ...currentFromGroup,
-                                  option
-                                ].slice(
-                                  -(group.max || 1)
-                                );
-                              }
+                            const currentFromGroup = prev.filter(o =>
+                              group.options.some(go => go.name === o.name)
                             );
-                          }}
-                        />
-                      </label>
-                    );
-                  })}
-                </div>
-              )
-            )}
 
-            <div
-              className="row"
-              style={{ marginTop: 18 }}
-            >
-              <button
-                className="btn secondary"
-                onClick={() =>
-                  setActiveProduct(null)
-                }
-              >
+                            const withoutGroup = prev.filter(
+                              o => !group.options.some(go => go.name === o.name)
+                            );
+
+                            return [...withoutGroup, ...currentFromGroup, option].slice(
+                              -(group.max || 1)
+                            );
+                          });
+                        }}
+                      />
+                    </label>
+                  );
+                })}
+              </div>
+            ))}
+
+            <div className="row" style={{ marginTop: 18 }}>
+              <button className="btn secondary" onClick={() => setActiveProduct(null)}>
                 Annuleren
               </button>
 
-              <button
-                className="btn"
-                onClick={addActiveProduct}
-              >
+              <button className="btn" onClick={addActiveProduct}>
                 Toevoegen
               </button>
             </div>
