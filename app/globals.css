@@ -39,6 +39,7 @@ button {
   border-radius: 18px;
   padding: 18px;
   box-shadow: 0 8px 25px rgba(0,0,0,.04);
+  overflow-x: auto;
 }
 
 .grid {
@@ -124,6 +125,7 @@ button {
 
 .table {
   width: 100%;
+  min-width: 720px;
   border-collapse: collapse;
 }
 
@@ -281,6 +283,7 @@ button {
   }
 
   .table {
+    min-width: 720px;
     font-size: 14px;
   }
 
