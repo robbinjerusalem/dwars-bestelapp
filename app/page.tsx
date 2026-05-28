@@ -60,6 +60,21 @@ export default function Page() {
 
   const cartItemCount = cart.reduce((s, item) => s + item.quantity, 0);
 
+  const totalOrders = orders.length;
+
+  const totalPeople = new Set(orders.map(o => o.personName)).size;
+
+  const totalProducts = orders.reduce(
+    (sum, order) =>
+      sum + order.items.reduce((s, item) => s + item.quantity, 0),
+    0
+  );
+
+  const totalRevenue = orders.reduce(
+    (sum, order) => sum + orderTotal(order),
+    0
+  );
+
   function showMessage(message: string, duration = 1800) {
     setSuccessMessage(message);
 
@@ -261,6 +276,35 @@ export default function Page() {
             </div>
           </div>
 
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))',
+              gap: 12,
+              marginBottom: 24
+            }}
+          >
+            <div className="card">
+              <div className="small">Bestellingen</div>
+              <h2>{totalOrders}</h2>
+            </div>
+
+            <div className="card">
+              <div className="small">Personen</div>
+              <h2>{totalPeople}</h2>
+            </div>
+
+            <div className="card">
+              <div className="small">Producten</div>
+              <h2>{totalProducts}</h2>
+            </div>
+
+            <div className="card">
+              <div className="small">Omzet</div>
+              <h2>{euro(totalRevenue)}</h2>
+            </div>
+          </div>
+
           <h3>Per persoon</h3>
 
           <table className="table">
@@ -322,7 +366,7 @@ export default function Page() {
             </tbody>
           </table>
 
-          <h3>Eindtotaal: {euro(orders.reduce((s, o) => s + orderTotal(o), 0))}</h3>
+          <h3>Eindtotaal: {euro(totalRevenue)}</h3>
         </section>
       ) : (
         <>
