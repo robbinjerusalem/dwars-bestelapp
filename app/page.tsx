@@ -227,9 +227,17 @@ export default function Page() {
       }
     }
 
-    return [...map.values()].sort((a, b) =>
-      a.label.localeCompare(b.label)
-    );
+    return [...map.values()].sort((a, b) => {
+
+  // Hoogste aantallen eerst
+  if (b.count !== a.count) {
+    return b.count - a.count;
+  }
+
+  // Daarna alfabetisch
+  return a.label.localeCompare(b.label);
+
+});
   }, [orders]);
 
   if (!menu) {
