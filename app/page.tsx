@@ -7,10 +7,63 @@ import { euro, itemTotal, orderTotal } from '../lib/money';
 type CartLine = OrderItem;
 
 const ADMIN_PIN = '7161';
+const OWNER_NAME = 'Robbin Jerusalem';
+
+function parseEuroInput(value: string) {
+  const normalized = value.replace(',', '.').replace(/[^\d.]/g, '');
+  return Number(normalized || 0);
+}
+
+function getCurrentWeekKey() {
+  const now = new Date();
+
+  const date = new Date(
+    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
+  );
+
+  const dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+
+  const weekNo = Math.ceil(
+    ((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7
+  );
+
+  return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+}
+
+function getRecentWeeks(amount = 12) {
+  const weeks: string[] = [];
+  const now = new Date();
+
+  for (let i = 0; i < amount; i++) {
+    const d = new Date(now);
+    d.setDate(now.getDate() - i * 7);
+
+    const date = new Date(
+      Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())
+    );
+
+    const dayNum = date.getUTCDay() || 7;
+    date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+
+    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+
+    const weekNo = Math.ceil(
+      ((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7
+    );
+
+    weeks.push(`${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`);
+  }
+
+  return Array.from(new Set(weeks));
+}
 
 export default function Page() {
   const [menu, setMenu] = useState<Menu | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [selectedWeek, setSelectedWeek] = useState(getCurrentWeekKey());
   const [name, setName] = useState('');
   const [category, setCategory] = useState('Alle');
   const [search, setSearch] = useState('');
@@ -21,15 +74,17 @@ export default function Page() {
   const [admin, setAdmin] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [myOrder, setMyOrder] = useState<Order | null>(null);
+  const [tikkieReceivedInput, setTikkieReceivedInput] = useState('');
 
-  async function load() {
+  async function load(weekKey = getCurrentWeekKey()) {
     const [m, o] = await Promise.all([
       fetch('/api/menu').then(r => r.json()),
-      fetch('/api/orders').then(r => r.json())
+      fetch(`/api/orders?weekKey=${weekKey}`).then(r => r.json())
     ]);
 
     setMenu(m);
     setOrders(o);
+    setSelectedWeek(weekKey);
   }
 
   useEffect(() => {
@@ -42,6 +97,18 @@ export default function Page() {
   useEffect(() => {
     localStorage.setItem('dwars-name', name);
   }, [name]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(`dwars-tikkie-received-${selectedWeek}`);
+    setTikkieReceivedInput(saved || '');
+  }, [selectedWeek]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      `dwars-tikkie-received-${selectedWeek}`,
+      tikkieReceivedInput
+    );
+  }, [selectedWeek, tikkieReceivedInput]);
 
   useEffect(() => {
     if (!name.trim()) {
@@ -72,12 +139,21 @@ export default function Page() {
     });
   }, [menu, category, search]);
 
+  const availableWeeks = useMemo(() => {
+    const weeks = new Set<string>();
+
+    getRecentWeeks(16).forEach(week => weeks.add(week));
+
+    orders.forEach(order => {
+      if (order.weekKey) weeks.add(order.weekKey);
+    });
+
+    return [...weeks].sort().reverse();
+  }, [orders]);
+
   const cartTotal = cart.reduce((s, item) => s + itemTotal(item), 0);
-
   const cartItemCount = cart.reduce((s, item) => s + item.quantity, 0);
-
   const totalOrders = orders.length;
-
   const totalPeople = new Set(orders.map(o => o.personName)).size;
 
   const totalProducts = orders.reduce(
@@ -91,6 +167,25 @@ export default function Page() {
     0
   );
 
+  const ownOrder = orders.find(
+    order =>
+      order.personName.toLowerCase().trim() ===
+      OWNER_NAME.toLowerCase().trim()
+  );
+
+  const ownOrderTotal = ownOrder ? orderTotal(ownOrder) : 0;
+  const tikkieExpected = Math.max(totalRevenue - ownOrderTotal, 0);
+  const tikkieReceived = parseEuroInput(tikkieReceivedInput);
+  const tikkieDifference = tikkieReceived - tikkieExpected;
+
+  const isEditingOrder = Boolean(myOrder && cart.length > 0);
+  const displayedCustomerItems = isEditingOrder ? cart : myOrder?.items || [];
+  const displayedCustomerTotal = isEditingOrder
+    ? cartTotal
+    : myOrder
+      ? orderTotal(myOrder)
+      : 0;
+
   function showMessage(message: string, duration = 1800) {
     setSuccessMessage(message);
 
@@ -102,6 +197,7 @@ export default function Page() {
   function toggleAdmin() {
     if (admin) {
       setAdmin(false);
+      load(getCurrentWeekKey());
       return;
     }
 
@@ -175,24 +271,21 @@ export default function Page() {
   }
 
   function editMyOrder() {
-  if (!myOrder) return;
+    if (!myOrder) return;
 
-  setCart(myOrder.items);
+    setCart(myOrder.items);
+    setCartOpen(false);
 
-  // sluit winkelwagen zodat gebruiker verder kan bestellen
-  setCartOpen(false);
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
 
-  // scroll naar menu
-  window.scrollTo({
-    top: 0,
-    behavior: 'smooth'
-  });
-
-  showMessage(
-    'Je bestelling wordt gewijzigd — voeg extra producten toe en klik daarna opnieuw op bestellen',
-    3500
-  );
-}
+    showMessage(
+      'Je bestelling wordt gewijzigd — voeg extra producten toe en klik daarna opnieuw op bestellen',
+      3500
+    );
+  }
 
   async function cancelMyOrder() {
     if (!name.trim()) return;
@@ -215,7 +308,7 @@ export default function Page() {
     setCart([]);
     setCartOpen(false);
 
-    await load();
+    await load(getCurrentWeekKey());
 
     showMessage('Bestelling geannuleerd');
   }
@@ -240,21 +333,39 @@ export default function Page() {
     setCart([]);
     setCartOpen(false);
 
-    await load();
+    await load(getCurrentWeekKey());
 
     showMessage('✅ Bestelling opgeslagen!', 2500);
   }
 
   async function clearOrders() {
-    if (!confirm('Alle bestellingen wissen voor een nieuwe ronde?')) {
+    if (!confirm(`Alle bestellingen wissen voor ${selectedWeek}?`)) {
       return;
     }
 
-    await fetch('/api/orders', {
+    await fetch(`/api/orders?weekKey=${selectedWeek}`, {
       method: 'DELETE'
     });
 
-    await load();
+    await load(selectedWeek);
+    showMessage('Week gewist');
+  }
+
+  async function deleteOrder(order: Order) {
+    if (!confirm(`Bestelling van ${order.personName} verwijderen?`)) {
+      return;
+    }
+
+    const res = await fetch(`/api/orders?orderId=${order.id}`, {
+      method: 'DELETE'
+    });
+
+    if (!res.ok) {
+      return alert((await res.json()).error || 'Verwijderen mislukt');
+    }
+
+    await load(selectedWeek);
+    showMessage(`Bestelling van ${order.personName} verwijderd`);
   }
 
   const productTotals = useMemo(() => {
@@ -337,18 +448,41 @@ export default function Page() {
       {admin ? (
         <section className="card">
           <div className="row">
-            <h2>Overzicht</h2>
+            <div>
+              <h2>Overzicht</h2>
+
+              <div style={{ marginTop: 12 }}>
+                <label className="small">Week bekijken</label>
+
+                <select
+                  className="input"
+                  value={selectedWeek}
+                  onChange={e => load(e.target.value)}
+                  style={{ maxWidth: 240, marginTop: 6 }}
+                >
+                  {availableWeeks.map(week => (
+                    <option key={week} value={week}>
+                      {week}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button className="btn secondary" onClick={load}>
+              <button className="btn secondary" onClick={() => load(selectedWeek)}>
                 Vernieuwen
               </button>
 
               <button className="btn danger" onClick={clearOrders}>
-                Nieuwe ronde / wissen
+                Deze week wissen
               </button>
             </div>
           </div>
+
+          <p className="small" style={{ marginTop: 12 }}>
+            Je bekijkt nu: <strong>{selectedWeek}</strong>
+          </p>
 
           <div
             style={{
@@ -379,6 +513,54 @@ export default function Page() {
             </div>
           </div>
 
+          <h3>Tikkie controle</h3>
+
+          <div
+            className="card"
+            style={{
+              marginBottom: 24,
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))',
+              gap: 12
+            }}
+          >
+            <div>
+              <div className="small">Totaal bestelling</div>
+              <h2>{euro(totalRevenue)}</h2>
+            </div>
+
+            <div>
+              <div className="small">Eigen bestelling ({OWNER_NAME})</div>
+              <h2>{euro(ownOrderTotal)}</h2>
+            </div>
+
+            <div>
+              <div className="small">Te ontvangen via Tikkie</div>
+              <h2>{euro(tikkieExpected)}</h2>
+            </div>
+
+            <div>
+              <label className="small">Ontvangen via Tikkie</label>
+              <input
+                className="input"
+                value={tikkieReceivedInput}
+                onChange={e => setTikkieReceivedInput(e.target.value)}
+                placeholder="Bijv. 114,90"
+              />
+            </div>
+
+            <div>
+              <div className="small">Verschil</div>
+              <h2>
+                {Math.abs(tikkieDifference) < 0.01
+                  ? '✅ Klopt'
+                  : tikkieDifference < 0
+                    ? `⚠️ Mist ${euro(Math.abs(tikkieDifference))}`
+                    : `+ ${euro(tikkieDifference)} teveel`}
+              </h2>
+            </div>
+          </div>
+
           <h3>Per persoon</h3>
 
           <table className="table">
@@ -388,6 +570,7 @@ export default function Page() {
                 <th>Bestelling</th>
                 <th>Bedrag</th>
                 <th>Tikkie tekst</th>
+                <th>Actie</th>
               </tr>
             </thead>
 
@@ -415,8 +598,23 @@ export default function Page() {
                     Hoi {order.personName}, jouw Dwars-bestelling was{' '}
                     {euro(orderTotal(order))}.
                   </td>
+
+                  <td>
+                    <button
+                      className="btn danger"
+                      onClick={() => deleteOrder(order)}
+                    >
+                      Verwijder
+                    </button>
+                  </td>
                 </tr>
               ))}
+
+              {orders.length === 0 && (
+                <tr>
+                  <td colSpan={5}>Geen bestellingen voor deze week.</td>
+                </tr>
+              )}
             </tbody>
           </table>
 
@@ -437,6 +635,12 @@ export default function Page() {
                   <td>{row.count}</td>
                 </tr>
               ))}
+
+              {productTotals.length === 0 && (
+                <tr>
+                  <td colSpan={2}>Geen keukenregels voor deze week.</td>
+                </tr>
+              )}
             </tbody>
           </table>
 
@@ -460,16 +664,26 @@ export default function Page() {
               className="card"
               style={{
                 marginBottom: 16,
-                border: '2px solid #16a34a'
+                border: isEditingOrder ? '2px solid #f6c51f' : '2px solid #16a34a'
               }}
             >
               <div className="row">
                 <div>
-                  <h3 style={{ margin: 0 }}>✅ Jouw huidige bestelling</h3>
+                  <h3 style={{ margin: 0 }}>
+                    {isEditingOrder
+                      ? '📝 Concept bestelling'
+                      : '✅ Jouw huidige bestelling'}
+                  </h3>
 
                   <div className="small">
-                    Laatst opgeslagen:{' '}
-                    {new Date(myOrder.createdAt).toLocaleString('nl-NL')}
+                    {isEditingOrder
+                      ? 'Nog niet opgeslagen — klik onderaan op Bestelling doorgeven'
+                      : (
+                        <>
+                          Laatst opgeslagen:{' '}
+                          {new Date(myOrder.createdAt).toLocaleString('nl-NL')}
+                        </>
+                      )}
                   </div>
                 </div>
 
@@ -492,26 +706,35 @@ export default function Page() {
               </div>
 
               <div style={{ marginTop: 14 }}>
-                {myOrder.items.map((item, idx) => (
-                  <div key={idx} style={{ marginBottom: 10 }}>
-                    <strong>
-                      {item.quantity}x {item.productName}
-                    </strong>
+  {displayedCustomerItems.map((item, idx) => (
+    <div
+      key={idx}
+      className="row"
+      style={{ marginBottom: 10 }}
+    >
+      <div>
+        <strong>
+          {item.quantity}x {item.productName}
+        </strong>
 
-                    {item.options?.length ? (
-                      <div className="small">
-                        {item.options.map(o => o.name).join(', ')}
-                      </div>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
+        {item.options?.length ? (
+          <div className="small">
+            {item.options.map(o => o.name).join(', ')}
+          </div>
+        ) : null}
+      </div>
 
-              <div className="row" style={{ marginTop: 12 }}>
-                <strong>Totaal</strong>
-                <strong>{euro(orderTotal(myOrder))}</strong>
-              </div>
-            </section>
+      <strong>{euro(itemTotal(item))}</strong>
+    </div>
+  ))}
+</div>
+
+<div className="row" style={{ marginTop: 12 }}>
+  <strong>Totaal</strong>
+  <strong>{euro(displayedCustomerTotal)}</strong>
+</div>
+
+</section>
           )}
 
           <section className="card" style={{ marginBottom: 16 }}>

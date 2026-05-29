@@ -10,20 +10,13 @@ function getCurrentWeekKey() {
   const now = new Date();
 
   const date = new Date(
-    Date.UTC(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate()
-    )
+    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
   );
 
   const dayNum = date.getUTCDay() || 7;
-
   date.setUTCDate(date.getUTCDate() + 4 - dayNum);
 
-  const yearStart = new Date(
-    Date.UTC(date.getUTCFullYear(), 0, 1)
-  );
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
 
   const weekNo = Math.ceil(
     ((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7
@@ -42,13 +35,15 @@ function mapOrder(order: any) {
   };
 }
 
-export async function GET() {
-  const weekKey = getCurrentWeekKey();
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+
+  const selectedWeekKey = searchParams.get('weekKey') || getCurrentWeekKey();
 
   const { data, error } = await supabase
     .from('orders')
     .select('*')
-    .eq('week_key', weekKey)
+    .eq('week_key', selectedWeekKey)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -83,21 +78,21 @@ export async function POST(request: Request) {
   }
 
   const { data, error } = await supabase
-  .from('orders')
-  .upsert(
-    [
+    .from('orders')
+    .upsert(
+      [
+        {
+          person_name: personName,
+          items,
+          week_key: weekKey
+        }
+      ],
       {
-        person_name: personName,
-        items,
-        week_key: weekKey
+        onConflict: 'person_name,week_key'
       }
-    ],
-    {
-      onConflict: 'person_name,week_key'
-    }
-  )
-  .select()
-  .single();
+    )
+    .select()
+    .single();
 
   if (error) {
     return NextResponse.json(
@@ -109,13 +104,21 @@ export async function POST(request: Request) {
   return NextResponse.json(mapOrder(data));
 }
 
-export async function DELETE() {
-  const weekKey = getCurrentWeekKey();
+export async function DELETE(request: Request) {
+  const { searchParams } = new URL(request.url);
 
-  const { error } = await supabase
-    .from('orders')
-    .delete()
-    .eq('week_key', weekKey);
+  const orderId = searchParams.get('orderId');
+  const selectedWeekKey = searchParams.get('weekKey') || getCurrentWeekKey();
+
+  let query = supabase.from('orders').delete();
+
+  if (orderId) {
+    query = query.eq('id', orderId);
+  } else {
+    query = query.eq('week_key', selectedWeekKey);
+  }
+
+  const { error } = await query;
 
   if (error) {
     return NextResponse.json(
