@@ -58,12 +58,12 @@ export default function CustomerOrder({
               : '✅ Jouw huidige bestelling'}
           </h3>
 
-          <div className="small">
+          <div className="small" style={{ marginTop: 4 }}>
             {isEditingOrder
               ? 'Nog niet opgeslagen — klik onderaan op Bestelling doorgeven'
               : (
                 <>
-                  Laatst opgeslagen:{' '}
+                  🕒 Laatst opgeslagen:{' '}
                   {createdAt
                     ? new Date(createdAt).toLocaleString('nl-NL')
                     : '-'}
@@ -90,7 +90,7 @@ export default function CustomerOrder({
         </div>
       </div>
 
-      <div style={{ marginTop: 14 }}>
+      <div style={{ marginTop: 24 }}>
         {groupedItems.map((item, idx) => (
           <div
             key={idx}
@@ -114,7 +114,14 @@ export default function CustomerOrder({
         ))}
       </div>
 
-      <div className="row" style={{ marginTop: 12 }}>
+      <div
+        className="row"
+        style={{
+          marginTop: 14,
+          paddingTop: 12,
+          borderTop: '1px solid #e5e7eb'
+        }}
+      >
         <strong>Totaal</strong>
         <strong>{euro(displayedCustomerTotal)}</strong>
       </div>

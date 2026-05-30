@@ -436,11 +436,7 @@ export default function Page() {
         <div>
           <h1>Dwars Bestelapp</h1>
 
-          <p className="small">
-            Prijzen bijgewerkt: {new Date(menu.updatedAt).toLocaleString('nl-NL')} · bron:{' '}
-            {menu.source}
-          </p>
-        </div>
+                  </div>
 
         <button className="btn secondary" onClick={toggleAdmin}>
           {admin ? 'Bestellen' : 'Admin overzicht'}
