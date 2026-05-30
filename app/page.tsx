@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import CustomerOrder from '@/components/CustomerOrder';
 import type { Menu, Product, MenuOption, Order, OrderItem } from '@/lib/types';
-import { euro, itemTotal, orderTotal } from '../lib/money';
+import { euro, orderTotal } from '../lib/money';
 import { getCurrentWeekKey, getRecentWeeks } from '@/lib/week';
+import { useCart } from '@/hooks/useCart';
 import ProductCard from '@/components/ProductCard';
 import AdminPanel from '@/components/AdminPanel';
 import CartModal from '@/components/CartModal';
@@ -14,36 +15,6 @@ type CartLine = OrderItem;
 
 const ADMIN_PIN = '7161';
 
-function optionsKey(options: MenuOption[]) {
-  return [...options]
-    .map(option => `${option.name}:${option.price}`)
-    .sort()
-    .join('|');
-}
-
-function sameCartLine(a: CartLine, b: CartLine) {
-  return (
-    a.productId === b.productId &&
-    a.productName === b.productName &&
-    a.basePrice === b.basePrice &&
-    optionsKey(a.options) === optionsKey(b.options)
-  );
-}
-
-function addOrMergeCartLine(cart: CartLine[], newLine: CartLine) {
-  const existingIndex = cart.findIndex(item => sameCartLine(item, newLine));
-
-  if (existingIndex === -1) {
-    return [...cart, newLine];
-  }
-
-  return cart.map((item, index) =>
-    index === existingIndex
-      ? { ...item, quantity: item.quantity + newLine.quantity }
-      : item
-  );
-}
-
 export default function Page() {
   const [menu, setMenu] = useState<Menu | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -51,7 +22,6 @@ export default function Page() {
   const [name, setName] = useState('');
   const [category, setCategory] = useState('Alle');
   const [search, setSearch] = useState('');
-  const [cart, setCart] = useState<CartLine[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
   const [selectedOptions, setSelectedOptions] = useState<MenuOption[]>([]);
@@ -59,6 +29,17 @@ export default function Page() {
   const [successMessage, setSuccessMessage] = useState('');
   const [myOrder, setMyOrder] = useState<Order | null>(null);
   const [tikkieReceivedInput, setTikkieReceivedInput] = useState('');
+
+  const {
+    cart,
+    setCart,
+    cartTotal,
+    cartItemCount,
+    addItem,
+    increaseQuantity,
+    decreaseQuantity,
+    removeItem
+  } = useCart();
 
   async function load(weekKey = getCurrentWeekKey()) {
     const [m, o] = await Promise.all([
@@ -135,9 +116,6 @@ export default function Page() {
     return [...weeks].sort().reverse();
   }, [orders]);
 
-  const cartTotal = cart.reduce((s, item) => s + itemTotal(item), 0);
-  const cartItemCount = cart.reduce((s, item) => s + item.quantity, 0);
-
   const isEditingOrder = Boolean(myOrder && cart.length > 0);
   const displayedCustomerItems = isEditingOrder ? cart : myOrder?.items || [];
   const displayedCustomerTotal = isEditingOrder
@@ -184,7 +162,7 @@ export default function Page() {
       options: []
     };
 
-    setCart(prev => addOrMergeCartLine(prev, newLine));
+    addItem(newLine);
 
     showMessage(`${product.name} toegevoegd`);
   }
@@ -200,32 +178,10 @@ export default function Page() {
       options: selectedOptions
     };
 
-    setCart(prev => addOrMergeCartLine(prev, newLine));
+    addItem(newLine);
 
     setActiveProduct(null);
     showMessage(`${activeProduct.name} toegevoegd`);
-  }
-
-  function increaseQuantity(index: number) {
-    setCart(prev =>
-      prev.map((item, i) =>
-        i === index ? { ...item, quantity: item.quantity + 1 } : item
-      )
-    );
-  }
-
-  function decreaseQuantity(index: number) {
-    setCart(prev =>
-      prev
-        .map((item, i) =>
-          i === index ? { ...item, quantity: item.quantity - 1 } : item
-        )
-        .filter(item => item.quantity > 0)
-    );
-  }
-
-  function removeItem(index: number) {
-    setCart(prev => prev.filter((_, i) => i !== index));
   }
 
   function editMyOrder() {
