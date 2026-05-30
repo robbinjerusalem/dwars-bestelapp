@@ -6,6 +6,7 @@ import type { Menu, Product, MenuOption, Order, OrderItem } from '@/lib/types';
 import { euro, itemTotal, orderTotal } from '../lib/money';
 import ProductCard from '@/components/ProductCard';
 import AdminPanel from '@/components/AdminPanel';
+import CartModal from '@/components/CartModal';
 
 type CartLine = OrderItem;
 
@@ -55,6 +56,36 @@ function getRecentWeeks(amount = 12) {
   }
 
   return Array.from(new Set(weeks));
+}
+
+function optionsKey(options: MenuOption[]) {
+  return [...options]
+    .map(option => `${option.name}:${option.price}`)
+    .sort()
+    .join('|');
+}
+
+function sameCartLine(a: CartLine, b: CartLine) {
+  return (
+    a.productId === b.productId &&
+    a.productName === b.productName &&
+    a.basePrice === b.basePrice &&
+    optionsKey(a.options) === optionsKey(b.options)
+  );
+}
+
+function addOrMergeCartLine(cart: CartLine[], newLine: CartLine) {
+  const existingIndex = cart.findIndex(item => sameCartLine(item, newLine));
+
+  if (existingIndex === -1) {
+    return [...cart, newLine];
+  }
+
+  return cart.map((item, index) =>
+    index === existingIndex
+      ? { ...item, quantity: item.quantity + newLine.quantity }
+      : item
+  );
 }
 
 export default function Page() {
@@ -189,16 +220,15 @@ export default function Page() {
   }
 
   function addDirectProduct(product: Product) {
-    setCart(prev => [
-      ...prev,
-      {
-        productId: product.id,
-        productName: product.name,
-        quantity: 1,
-        basePrice: product.price,
-        options: []
-      }
-    ]);
+    const newLine: CartLine = {
+      productId: product.id,
+      productName: product.name,
+      quantity: 1,
+      basePrice: product.price,
+      options: []
+    };
+
+    setCart(prev => addOrMergeCartLine(prev, newLine));
 
     showMessage(`${product.name} toegevoegd`);
   }
@@ -206,16 +236,15 @@ export default function Page() {
   function addActiveProduct() {
     if (!activeProduct) return;
 
-    setCart(prev => [
-      ...prev,
-      {
-        productId: activeProduct.id,
-        productName: activeProduct.name,
-        quantity: 1,
-        basePrice: activeProduct.price,
-        options: selectedOptions
-      }
-    ]);
+    const newLine: CartLine = {
+      productId: activeProduct.id,
+      productName: activeProduct.name,
+      quantity: 1,
+      basePrice: activeProduct.price,
+      options: selectedOptions
+    };
+
+    setCart(prev => addOrMergeCartLine(prev, newLine));
 
     setActiveProduct(null);
     showMessage(`${activeProduct.name} toegevoegd`);
@@ -475,96 +504,16 @@ export default function Page() {
           )}
 
           {cartOpen && (
-            <div className="modalBg">
-              <div className="modal">
-                <div className="row">
-                  <h2>Jouw bestelling</h2>
-
-                  <button className="btn secondary" onClick={() => setCartOpen(false)}>
-                    Sluiten
-                  </button>
-                </div>
-
-                {cart.length === 0 ? (
-                  <p className="small">Nog niets gekozen.</p>
-                ) : (
-                  cart.map((item, idx) => (
-                    <div
-                      className="row"
-                      key={idx}
-                      style={{
-                        borderBottom: '1px solid #eee',
-                        padding: '10px 0',
-                        gap: 12
-                      }}
-                    >
-                      <div style={{ flex: 1 }}>
-                        <span>
-                          {item.quantity}x {item.productName}
-                          {item.options.length
-                            ? ' + ' + item.options.map(o => o.name).join(', ')
-                            : ''}
-                        </span>
-
-                        <div className="small">{euro(itemTotal(item))}</div>
-                      </div>
-
-                      <div
-                        style={{
-                          display: 'flex',
-                          gap: 8,
-                          alignItems: 'center',
-                          flexWrap: 'wrap',
-                          justifyContent: 'flex-end'
-                        }}
-                      >
-                        <button className="btn danger" onClick={() => removeItem(idx)}>
-                          🗑
-                        </button>
-
-                        <button className="btn secondary" onClick={() => decreaseQuantity(idx)}>
-                          -
-                        </button>
-
-                        <strong>{item.quantity}</strong>
-
-                        <button className="btn" onClick={() => increaseQuantity(idx)}>
-                          +
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-
-                <div className="totalBox">
-                  <div style={{ marginBottom: 12 }}>
-                    <button
-                      className="btn danger"
-                      style={{ width: '100%' }}
-                      onClick={() => setCart([])}
-                    >
-                      Winkelwagen leegmaken
-                    </button>
-                  </div>
-
-                  <div className="row">
-                    <strong>Totaal</strong>
-                    <strong>{euro(cartTotal)}</strong>
-                  </div>
-
-                  <button
-                    className="btn"
-                    style={{
-                      width: '100%',
-                      marginTop: 12
-                    }}
-                    onClick={submitOrder}
-                  >
-                    Bestelling doorgeven
-                  </button>
-                </div>
-              </div>
-            </div>
+            <CartModal
+              cart={cart}
+              cartTotal={cartTotal}
+              setCart={setCart}
+              setCartOpen={setCartOpen}
+              increaseQuantity={increaseQuantity}
+              decreaseQuantity={decreaseQuantity}
+              removeItem={removeItem}
+              submitOrder={submitOrder}
+            />
           )}
         </>
       )}
