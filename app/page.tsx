@@ -169,6 +169,17 @@ export default function Page() {
     0
   );
 
+  const unpaidOrders = orders.filter(order => !order.paid);
+
+  const unpaidRevenue = unpaidOrders.reduce(
+    (sum, order) => sum + orderTotal(order),
+    0
+  );
+
+  const paidPeople = orders.filter(order => order.paid).length;
+  const unpaidPeople = orders.filter(order => !order.paid).length;
+  const everyonePaid = orders.length > 0 && unpaidPeople === 0;
+
   const ownOrder = orders.find(
     order =>
       order.personName.toLowerCase().trim() ===
@@ -176,7 +187,22 @@ export default function Page() {
   );
 
   const ownOrderTotal = ownOrder ? orderTotal(ownOrder) : 0;
-  const tikkieExpected = Math.max(totalRevenue - ownOrderTotal, 0);
+
+  const unpaidOwnOrder = unpaidOrders.find(
+    order =>
+      order.personName.toLowerCase().trim() ===
+      OWNER_NAME.toLowerCase().trim()
+  );
+
+  const unpaidOwnOrderTotal = unpaidOwnOrder
+    ? orderTotal(unpaidOwnOrder)
+    : 0;
+
+  const tikkieExpected = Math.max(
+    unpaidRevenue - unpaidOwnOrderTotal,
+    0
+  );
+
   const tikkieReceived = parseEuroInput(tikkieReceivedInput);
   const tikkieDifference = tikkieReceived - tikkieExpected;
 
@@ -353,6 +379,55 @@ export default function Page() {
     showMessage('Week gewist');
   }
 
+  async function setPaidStatus(order: Order, paid: boolean) {
+    const res = await fetch('/api/orders', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        orderId: order.id,
+        paid
+      })
+    });
+
+    if (!res.ok) {
+      return alert((await res.json()).error || 'Betaalstatus aanpassen mislukt');
+    }
+
+    await load(selectedWeek);
+    showMessage(
+      paid
+        ? `${order.personName} staat op betaald`
+        : `${order.personName} staat weer open`
+    );
+  }
+
+  async function setAllPaid() {
+    if (!confirm(`Alle bestellingen voor ${selectedWeek} op betaald zetten?`)) {
+      return;
+    }
+
+    const res = await fetch('/api/orders', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        weekKey: selectedWeek,
+        paid: true,
+        all: true
+      })
+    });
+
+    if (!res.ok) {
+      return alert((await res.json()).error || 'Alles betaald zetten mislukt');
+    }
+
+    await load(selectedWeek);
+    showMessage('Iedereen staat op betaald');
+  }
+
   async function deleteOrder(order: Order) {
     if (!confirm(`Bestelling van ${order.personName} verwijderen?`)) {
       return;
@@ -435,8 +510,7 @@ export default function Page() {
       <div className="header">
         <div>
           <h1>Dwars Bestelapp</h1>
-
-                  </div>
+        </div>
 
         <button className="btn secondary" onClick={toggleAdmin}>
           {admin ? 'Bestellen' : 'Admin overzicht'}
@@ -472,6 +546,10 @@ export default function Page() {
                 Vernieuwen
               </button>
 
+              <button className="btn" onClick={setAllPaid}>
+                Alles betaald
+              </button>
+
               <button className="btn danger" onClick={clearOrders}>
                 Deze week wissen
               </button>
@@ -481,6 +559,23 @@ export default function Page() {
           <p className="small" style={{ marginTop: 12 }}>
             Je bekijkt nu: <strong>{selectedWeek}</strong>
           </p>
+
+          {everyonePaid && (
+            <div
+              style={{
+                background: '#dcfce7',
+                border: '1px solid #86efac',
+                color: '#166534',
+                padding: 14,
+                borderRadius: 14,
+                marginTop: 16,
+                marginBottom: 16,
+                fontWeight: 700
+              }}
+            >
+              ✅ Iedereen heeft betaald. Er staat niets meer open.
+            </div>
+          )}
 
           <div
             style={{
@@ -506,8 +601,23 @@ export default function Page() {
             </div>
 
             <div className="card">
-              <div className="small">Omzet</div>
+              <div className="small">Omzet totaal</div>
               <h2>{euro(totalRevenue)}</h2>
+            </div>
+
+            <div className="card">
+              <div className="small">Betaald</div>
+              <h2>{paidPeople}</h2>
+            </div>
+
+            <div className="card">
+              <div className="small">Open</div>
+              <h2>{unpaidPeople}</h2>
+            </div>
+
+            <div className="card">
+              <div className="small">Openstaand bedrag</div>
+              <h2>{euro(unpaidRevenue)}</h2>
             </div>
           </div>
 
@@ -525,6 +635,11 @@ export default function Page() {
             <div>
               <div className="small">Totaal bestelling</div>
               <h2>{euro(totalRevenue)}</h2>
+            </div>
+
+            <div>
+              <div className="small">Openstaand totaal</div>
+              <h2>{euro(unpaidRevenue)}</h2>
             </div>
 
             <div>
@@ -565,6 +680,7 @@ export default function Page() {
             <thead>
               <tr>
                 <th>Naam</th>
+                <th>Status</th>
                 <th>Bestelling</th>
                 <th>Bedrag</th>
                 <th>Tikkie tekst</th>
@@ -576,6 +692,16 @@ export default function Page() {
               {orders.map(order => (
                 <tr key={order.id}>
                   <td>{order.personName}</td>
+
+                  <td>
+                    <strong
+                      style={{
+                        color: order.paid ? '#16a34a' : '#dc2626'
+                      }}
+                    >
+                      {order.paid ? 'Betaald' : 'Open'}
+                    </strong>
+                  </td>
 
                   <td>
                     {order.items
@@ -593,24 +719,43 @@ export default function Page() {
                   <td>{euro(orderTotal(order))}</td>
 
                   <td>
-                    Hoi {order.personName}, jouw Dwars-bestelling was{' '}
-                    {euro(orderTotal(order))}.
+                    {order.paid
+                      ? 'Betaald'
+                      : `Hoi ${order.personName}, jouw Dwars-bestelling was ${euro(orderTotal(order))}.`}
                   </td>
 
                   <td>
-                    <button
-                      className="btn danger"
-                      onClick={() => deleteOrder(order)}
-                    >
-                      Verwijder
-                    </button>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {order.paid ? (
+                        <button
+                          className="btn secondary"
+                          onClick={() => setPaidStatus(order, false)}
+                        >
+                          Open
+                        </button>
+                      ) : (
+                        <button
+                          className="btn"
+                          onClick={() => setPaidStatus(order, true)}
+                        >
+                          Betaald
+                        </button>
+                      )}
+
+                      <button
+                        className="btn danger"
+                        onClick={() => deleteOrder(order)}
+                      >
+                        Verwijder
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
 
               {orders.length === 0 && (
                 <tr>
-                  <td colSpan={5}>Geen bestellingen voor deze week.</td>
+                  <td colSpan={6}>Geen bestellingen voor deze week.</td>
                 </tr>
               )}
             </tbody>
@@ -692,15 +837,15 @@ export default function Page() {
           </div>
 
           <section className="grid">
-  {products.map(product => (
-    <ProductCard
-      key={product.id}
-      product={product}
-      openProduct={openProduct}
-      addDirectProduct={addDirectProduct}
-    />
-  ))}
-</section>
+            {products.map(product => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                openProduct={openProduct}
+                addDirectProduct={addDirectProduct}
+              />
+            ))}
+          </section>
 
           {cart.length > 0 && (
             <div
