@@ -10,6 +10,28 @@ type CustomerOrderProps = {
   cancelMyOrder: () => void;
 };
 
+function groupItems(items: OrderItem[]) {
+  const map = new Map<string, OrderItem>();
+
+  for (const item of items) {
+    const optionKey = item.options.map(o => o.name).sort().join('|');
+    const key = `${item.productId}-${optionKey}`;
+
+    const existing = map.get(key);
+
+    if (existing) {
+      map.set(key, {
+        ...existing,
+        quantity: existing.quantity + item.quantity
+      });
+    } else {
+      map.set(key, { ...item });
+    }
+  }
+
+  return Array.from(map.values());
+}
+
 export default function CustomerOrder({
   isEditingOrder,
   displayedCustomerItems,
@@ -18,6 +40,8 @@ export default function CustomerOrder({
   editMyOrder,
   cancelMyOrder
 }: CustomerOrderProps) {
+  const groupedItems = groupItems(displayedCustomerItems);
+
   return (
     <section
       className="card"
@@ -67,7 +91,7 @@ export default function CustomerOrder({
       </div>
 
       <div style={{ marginTop: 14 }}>
-        {displayedCustomerItems.map((item, idx) => (
+        {groupedItems.map((item, idx) => (
           <div
             key={idx}
             className="row"
