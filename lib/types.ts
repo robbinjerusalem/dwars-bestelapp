@@ -33,5 +33,6 @@ export type Order = {
   personName: string;
   createdAt: string;
   weekKey: string;
+  paid: boolean;
   items: OrderItem[];
 };

@@ -31,6 +31,7 @@ function mapOrder(order: any) {
     personName: order.person_name,
     createdAt: order.created_at,
     weekKey: order.week_key,
+    paid: Boolean(order.paid),
     items: order.items
   };
 }
@@ -84,7 +85,8 @@ export async function POST(request: Request) {
         {
           person_name: personName,
           items,
-          week_key: weekKey
+          week_key: weekKey,
+          paid: false
         }
       ],
       {
@@ -102,6 +104,43 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json(mapOrder(data));
+}
+
+export async function PATCH(request: Request) {
+  const body = await request.json();
+
+  const orderId = body.orderId ? String(body.orderId) : '';
+  const weekKey = body.weekKey ? String(body.weekKey) : getCurrentWeekKey();
+  const paid = Boolean(body.paid);
+  const all = Boolean(body.all);
+
+  let query = supabase
+    .from('orders')
+    .update({ paid });
+
+  if (all) {
+    query = query.eq('week_key', weekKey);
+  } else {
+    if (!orderId) {
+      return NextResponse.json(
+        { error: 'orderId is verplicht' },
+        { status: 400 }
+      );
+    }
+
+    query = query.eq('id', orderId);
+  }
+
+  const { error } = await query;
+
+  if (error) {
+    return NextResponse.json(
+      { error: error.message },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(request: Request) {
