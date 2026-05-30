@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import CustomerOrder from '@/components/CustomerOrder';
 import type { Menu, Product, MenuOption, Order, OrderItem } from '@/lib/types';
 import { euro, itemTotal, orderTotal } from '../lib/money';
+import { getCurrentWeekKey, getRecentWeeks } from '@/lib/week';
 import ProductCard from '@/components/ProductCard';
 import AdminPanel from '@/components/AdminPanel';
 import CartModal from '@/components/CartModal';
@@ -12,52 +13,6 @@ import ProductModal from '@/components/ProductModal';
 type CartLine = OrderItem;
 
 const ADMIN_PIN = '7161';
-
-function getCurrentWeekKey() {
-  const now = new Date();
-
-  const date = new Date(
-    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
-  );
-
-  const dayNum = date.getUTCDay() || 7;
-  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
-
-  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
-
-  const weekNo = Math.ceil(
-    ((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7
-  );
-
-  return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
-}
-
-function getRecentWeeks(amount = 12) {
-  const weeks: string[] = [];
-  const now = new Date();
-
-  for (let i = 0; i < amount; i++) {
-    const d = new Date(now);
-    d.setDate(now.getDate() - i * 7);
-
-    const date = new Date(
-      Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())
-    );
-
-    const dayNum = date.getUTCDay() || 7;
-    date.setUTCDate(date.getUTCDate() + 4 - dayNum);
-
-    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
-
-    const weekNo = Math.ceil(
-      ((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7
-    );
-
-    weeks.push(`${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`);
-  }
-
-  return Array.from(new Set(weeks));
-}
 
 function optionsKey(options: MenuOption[]) {
   return [...options]
