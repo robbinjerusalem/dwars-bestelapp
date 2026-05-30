@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import CustomerOrder from '@/components/CustomerOrder';
 import type { Menu, Product, MenuOption, Order, OrderItem } from '@/lib/types';
 import { euro, itemTotal, orderTotal } from '../lib/money';
+import ProductCard from '@/components/ProductCard';
 
 type CartLine = OrderItem;
 
@@ -695,36 +696,15 @@ export default function Page() {
           </div>
 
           <section className="grid">
-            {products.map(product => (
-              <article className="card product" key={product.id}>
-                <div className="row">
-                  <h3>{product.name}</h3>
-
-                  <span className="price">{euro(product.price)}</span>
-                </div>
-
-                {product.optionGroups?.length ? (
-                  <p className="small">Met opties/sauzen</p>
-                ) : (
-                  <p className="small">Geen opties</p>
-                )}
-
-                <button
-                  className="btn"
-                  onClick={() => {
-                    if (product.optionGroups?.length) {
-                      openProduct(product);
-                      return;
-                    }
-
-                    addDirectProduct(product);
-                  }}
-                >
-                  {product.optionGroups?.length ? 'Kies opties' : 'Direct toevoegen'}
-                </button>
-              </article>
-            ))}
-          </section>
+  {products.map(product => (
+    <ProductCard
+      key={product.id}
+      product={product}
+      openProduct={openProduct}
+      addDirectProduct={addDirectProduct}
+    />
+  ))}
+</section>
 
           {cart.length > 0 && (
             <div
