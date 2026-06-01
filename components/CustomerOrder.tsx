@@ -14,9 +14,12 @@ function groupItems(items: OrderItem[]) {
   const map = new Map<string, OrderItem>();
 
   for (const item of items) {
-    const optionKey = item.options.map(o => o.name).sort().join('|');
-    const key = `${item.productId}-${optionKey}`;
+    const optionKey = item.options
+      .map(o => o.name)
+      .sort((a, b) => a.localeCompare(b, 'nl-NL'))
+      .join('|');
 
+    const key = `${item.productId}-${optionKey}`;
     const existing = map.get(key);
 
     if (existing) {
@@ -30,6 +33,13 @@ function groupItems(items: OrderItem[]) {
   }
 
   return Array.from(map.values());
+}
+
+function optionText(item: OrderItem) {
+  return item.options
+    .map(option => option.name)
+    .sort((a, b) => a.localeCompare(b, 'nl-NL'))
+    .join(', ');
 }
 
 export default function CustomerOrder({
@@ -47,28 +57,32 @@ export default function CustomerOrder({
       className="card"
       style={{
         marginBottom: 16,
-        border: isEditingOrder ? '2px solid #f6c51f' : '2px solid #16a34a'
+        border: isEditingOrder ? '2px solid #f59e0b' : '2px solid #16a34a',
+        background: isEditingOrder ? '#fffbeb' : '#f0fdf4'
       }}
     >
-      <div className="row">
+      <div className="row" style={{ gap: 12 }}>
         <div>
           <h3 style={{ margin: 0 }}>
             {isEditingOrder
-              ? '📝 Concept bestelling'
-              : '✅ Jouw huidige bestelling'}
+              ? '📝 Je past je bestelling aan'
+              : '✅ Je hebt al besteld'}
           </h3>
 
           <div className="small" style={{ marginTop: 4 }}>
-            {isEditingOrder
-              ? 'Nog niet opgeslagen — klik onderaan op Bestelling doorgeven'
-              : (
-                <>
-                  🕒 Laatst opgeslagen:{' '}
-                  {createdAt
-                    ? new Date(createdAt).toLocaleString('nl-NL')
-                    : '-'}
-                </>
-              )}
+            {isEditingOrder ? (
+              <strong>
+                Nog niet opgeslagen. Klik onderaan op Bestelling doorgeven om je
+                wijziging op te slaan.
+              </strong>
+            ) : (
+              <>
+                Je kunt je bestelling hieronder nog wijzigen of annuleren.
+                <br />
+                🕒 Laatst opgeslagen:{' '}
+                {createdAt ? new Date(createdAt).toLocaleString('nl-NL') : '-'}
+              </>
+            )}
           </div>
         </div>
 
@@ -80,32 +94,28 @@ export default function CustomerOrder({
             justifyContent: 'flex-end'
           }}
         >
-          <button className="btn secondary" onClick={editMyOrder}>
-            Wijzigen
-          </button>
+          {!isEditingOrder && (
+            <button className="btn" onClick={editMyOrder}>
+              Bestelling wijzigen
+            </button>
+          )}
 
           <button className="btn danger" onClick={cancelMyOrder}>
-            Annuleren
+            Bestelling annuleren
           </button>
         </div>
       </div>
 
-      <div style={{ marginTop: 24 }}>
+      <div style={{ marginTop: 18 }}>
         {groupedItems.map((item, idx) => (
-          <div
-            key={idx}
-            className="row"
-            style={{ marginBottom: 10 }}
-          >
+          <div key={idx} className="row" style={{ marginBottom: 10 }}>
             <div>
               <strong>
                 {item.quantity}x {item.productName}
               </strong>
 
               {item.options?.length ? (
-                <div className="small">
-                  {item.options.map(o => o.name).join(', ')}
-                </div>
+                <div className="small">+ {optionText(item)}</div>
               ) : null}
             </div>
 

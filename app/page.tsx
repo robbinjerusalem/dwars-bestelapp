@@ -96,9 +96,15 @@ export default function Page() {
   );
 
   const products = useMemo(() => {
+    const normalizedSearch = search.toLowerCase().trim();
+
     return (menu?.products || []).filter(product => {
       const categoryMatch = category === 'Alle' || product.category === category;
-      const searchMatch = product.name.toLowerCase().includes(search.toLowerCase());
+
+      const searchMatch =
+        !normalizedSearch ||
+        product.name.toLowerCase().includes(normalizedSearch) ||
+        product.category.toLowerCase().includes(normalizedSearch);
 
       return categoryMatch && searchMatch;
     });
@@ -378,9 +384,9 @@ export default function Page() {
           </div>
 
           <section className="grid">
-            {products.map(product => (
+            {products.map((product, index) => (
               <ProductCard
-                key={product.id}
+                key={`${product.category}-${product.id}-${index}`}
                 product={product}
                 openProduct={openProduct}
                 addDirectProduct={addDirectProduct}
@@ -409,8 +415,8 @@ export default function Page() {
                 }}
                 onClick={() => setCartOpen(true)}
               >
-                Bekijk bestelling ({cartItemCount} {cartItemCount === 1 ? 'item' : 'items'} ·{' '}
-                {euro(cartTotal)})
+                Bekijk bestelling ({cartItemCount}{' '}
+                {cartItemCount === 1 ? 'item' : 'items'} · {euro(cartTotal)})
               </button>
             </div>
           )}

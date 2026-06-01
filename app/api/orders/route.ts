@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+const OWNER_NAME = 'Robbin Jerusalem';
+const ORDER_CLOSE_HOUR = 11;
+const ORDER_CLOSE_MINUTE = 0;
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -24,6 +28,29 @@ function getCurrentWeekKey() {
   return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
 }
 
+function isOwnerName(personName: string) {
+  return personName.toLowerCase().trim() === OWNER_NAME.toLowerCase().trim();
+}
+
+function isLateOrder() {
+  const now = new Date();
+
+  const parts = new Intl.DateTimeFormat('nl-NL', {
+    timeZone: 'Europe/Amsterdam',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).formatToParts(now);
+
+  const hour = Number(parts.find(part => part.type === 'hour')?.value || 0);
+  const minute = Number(parts.find(part => part.type === 'minute')?.value || 0);
+
+  return (
+    hour > ORDER_CLOSE_HOUR ||
+    (hour === ORDER_CLOSE_HOUR && minute >= ORDER_CLOSE_MINUTE)
+  );
+}
+
 function mapOrder(order: any) {
   return {
     id: order.id,
@@ -31,7 +58,8 @@ function mapOrder(order: any) {
     createdAt: order.created_at,
     weekKey: order.week_key,
     paid: Boolean(order.paid),
-    items: order.items,
+    lateOrder: Boolean(order.late_order),
+    items: order.items
   };
 }
 
@@ -78,8 +106,9 @@ export async function POST(request: Request) {
           person_name: personName,
           items,
           week_key: weekKey,
-          paid: false,
-        },
+          paid: isOwnerName(personName),
+          late_order: isLateOrder()
+        }
       ],
       { onConflict: 'person_name,week_key' }
     )

@@ -2,6 +2,7 @@ export type MenuOption = { name: string; price: number };
 
 export type OptionGroup = {
   name: string;
+  min?: number;
   max?: number;
   options: MenuOption[];
 };
@@ -34,5 +35,6 @@ export type Order = {
   createdAt: string;
   weekKey: string;
   paid: boolean;
+  lateOrder: boolean;
   items: OrderItem[];
 };

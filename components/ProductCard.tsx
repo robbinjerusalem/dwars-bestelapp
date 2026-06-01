@@ -12,6 +12,8 @@ export default function ProductCard({
   openProduct,
   addDirectProduct
 }: ProductCardProps) {
+  const hasOptions = Boolean(product.optionGroups?.length);
+
   return (
     <article className="card product">
       <div className="row">
@@ -20,7 +22,7 @@ export default function ProductCard({
         <span className="price">{euro(product.price)}</span>
       </div>
 
-      {product.optionGroups?.length ? (
+      {hasOptions ? (
         <p className="small">Met opties/sauzen</p>
       ) : (
         <p className="small">Geen opties</p>
@@ -29,7 +31,7 @@ export default function ProductCard({
       <button
         className="btn"
         onClick={() => {
-          if (product.optionGroups?.length) {
+          if (hasOptions) {
             openProduct(product);
             return;
           }
@@ -37,7 +39,7 @@ export default function ProductCard({
           addDirectProduct(product);
         }}
       >
-        {product.optionGroups?.length ? 'Kies opties' : 'Direct toevoegen'}
+        {hasOptions ? 'Kies opties' : 'Direct toevoegen'}
       </button>
     </article>
   );
