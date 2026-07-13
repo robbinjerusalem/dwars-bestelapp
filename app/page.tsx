@@ -10,6 +10,7 @@ import ProductCard from '@/components/ProductCard';
 import AdminPanel from '@/components/AdminPanel';
 import CartModal from '@/components/CartModal';
 import ProductModal from '@/components/ProductModal';
+import PaymentReminder from '@/components/PaymentReminder';
 
 type CartLine = OrderItem;
 
@@ -30,6 +31,11 @@ export default function Page() {
   const [myOrder, setMyOrder] = useState<Order | null>(null);
   const [tikkieReceivedInput, setTikkieReceivedInput] = useState('');
 
+  const [paymentReminder, setPaymentReminder] = useState<{
+    amount: number;
+    tikkieUrl: string;
+  } | null>(null);
+
   const {
     cart,
     setCart,
@@ -42,13 +48,16 @@ export default function Page() {
   } = useCart();
 
   async function load(weekKey = getCurrentWeekKey()) {
-    const [m, o] = await Promise.all([
-      fetch('/api/menu').then(r => r.json()),
-      fetch(`/api/orders?weekKey=${weekKey}`).then(r => r.json())
+    const [menuResponse, ordersResponse] = await Promise.all([
+      fetch('/api/menu'),
+      fetch(`/api/orders?weekKey=${encodeURIComponent(weekKey)}`)
     ]);
 
-    setMenu(m);
-    setOrders(o);
+    const menuData = await menuResponse.json();
+    const ordersData = await ordersResponse.json();
+
+    setMenu(menuData);
+    setOrders(ordersData);
     setSelectedWeek(weekKey);
   }
 
@@ -56,7 +65,10 @@ export default function Page() {
     load();
 
     const savedName = localStorage.getItem('dwars-name');
-    if (savedName) setName(savedName);
+
+    if (savedName) {
+      setName(savedName);
+    }
   }, []);
 
   useEffect(() => {
@@ -64,7 +76,10 @@ export default function Page() {
   }, [name]);
 
   useEffect(() => {
-    const saved = localStorage.getItem(`dwars-tikkie-received-${selectedWeek}`);
+    const saved = localStorage.getItem(
+      `dwars-tikkie-received-${selectedWeek}`
+    );
+
     setTikkieReceivedInput(saved || '');
   }, [selectedWeek]);
 
@@ -91,7 +106,12 @@ export default function Page() {
   }, [name, orders]);
 
   const categories = useMemo(
-    () => ['Alle', ...Array.from(new Set(menu?.products.map(p => p.category) || []))],
+    () => [
+      'Alle',
+      ...Array.from(
+        new Set(menu?.products.map(product => product.category) || [])
+      )
+    ],
     [menu]
   );
 
@@ -99,7 +119,8 @@ export default function Page() {
     const normalizedSearch = search.toLowerCase().trim();
 
     return (menu?.products || []).filter(product => {
-      const categoryMatch = category === 'Alle' || product.category === category;
+      const categoryMatch =
+        category === 'Alle' || product.category === category;
 
       const searchMatch =
         !normalizedSearch ||
@@ -116,14 +137,20 @@ export default function Page() {
     getRecentWeeks(16).forEach(week => weeks.add(week));
 
     orders.forEach(order => {
-      if (order.weekKey) weeks.add(order.weekKey);
+      if (order.weekKey) {
+        weeks.add(order.weekKey);
+      }
     });
 
     return [...weeks].sort().reverse();
   }, [orders]);
 
   const isEditingOrder = Boolean(myOrder && cart.length > 0);
-  const displayedCustomerItems = isEditingOrder ? cart : myOrder?.items || [];
+
+  const displayedCustomerItems = isEditingOrder
+    ? cart
+    : myOrder?.items || [];
+
   const displayedCustomerTotal = isEditingOrder
     ? cartTotal
     : myOrder
@@ -169,12 +196,13 @@ export default function Page() {
     };
 
     addItem(newLine);
-
     showMessage(`${product.name} toegevoegd`);
   }
 
   function addActiveProduct() {
-    if (!activeProduct) return;
+    if (!activeProduct) {
+      return;
+    }
 
     const newLine: CartLine = {
       productId: activeProduct.id,
@@ -187,11 +215,15 @@ export default function Page() {
     addItem(newLine);
 
     setActiveProduct(null);
+    setSelectedOptions([]);
+
     showMessage(`${activeProduct.name} toegevoegd`);
   }
 
   function editMyOrder() {
-    if (!myOrder) return;
+    if (!myOrder) {
+      return;
+    }
 
     setCart(myOrder.items);
     setCartOpen(false);
@@ -208,7 +240,9 @@ export default function Page() {
   }
 
   async function cancelMyOrder() {
-    if (!name.trim()) return;
+    if (!name.trim()) {
+      return;
+    }
 
     if (!confirm('Weet je zeker dat je jouw bestelling wilt annuleren?')) {
       return;
@@ -216,6 +250,9 @@ export default function Page() {
 
     const res = await fetch('/api/orders/cancel', {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({
         personName: name
       })
@@ -238,10 +275,19 @@ export default function Page() {
       return alert('Vul je voor- en achternaam in');
     }
 
+    if (cart.length === 0) {
+      return alert('Je winkelwagen is leeg');
+    }
+
+    const submittedAmount = cartTotal;
+
     const res = await fetch('/api/orders', {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({
-        personName: name,
+        personName: name.trim(),
         items: cart
       })
     });
@@ -250,12 +296,34 @@ export default function Page() {
       return alert((await res.json()).error || 'Opslaan mislukt');
     }
 
+    /*
+     * Vanaf dit punt staat de bestelling veilig opgeslagen.
+     * Problemen met Tikkie mogen de bestelling nooit verwijderen.
+     */
+    let tikkieUrl = '';
+
+    try {
+      const settingsResponse = await fetch('/api/settings', {
+        cache: 'no-store'
+      });
+
+      if (settingsResponse.ok) {
+        const settings = await settingsResponse.json();
+        tikkieUrl = String(settings.tikkieUrl || '');
+      }
+    } catch (error) {
+      console.error('Tikkie-link ophalen mislukt:', error);
+    }
+
     setCart([]);
     setCartOpen(false);
 
     await load(getCurrentWeekKey());
 
-    showMessage('✅ Bestelling opgeslagen!', 2500);
+    setPaymentReminder({
+      amount: submittedAmount,
+      tikkieUrl
+    });
   }
 
   async function clearOrders() {
@@ -263,9 +331,12 @@ export default function Page() {
       return;
     }
 
-    await fetch(`/api/orders?weekKey=${selectedWeek}`, {
-      method: 'DELETE'
-    });
+    await fetch(
+      `/api/orders?weekKey=${encodeURIComponent(selectedWeek)}`,
+      {
+        method: 'DELETE'
+      }
+    );
 
     await load(selectedWeek);
     showMessage('Week gewist');
@@ -276,20 +347,36 @@ export default function Page() {
       return;
     }
 
-    const res = await fetch(`/api/orders?orderId=${order.id}`, {
-      method: 'DELETE'
-    });
+    const res = await fetch(
+      `/api/orders?orderId=${encodeURIComponent(order.id)}`,
+      {
+        method: 'DELETE'
+      }
+    );
 
     if (!res.ok) {
       return alert((await res.json()).error || 'Verwijderen mislukt');
     }
 
     await load(selectedWeek);
+
     showMessage(`Bestelling van ${order.personName} verwijderd`);
   }
 
   if (!menu) {
     return <main className="page">Laden...</main>;
+  }
+
+  if (paymentReminder) {
+    return (
+      <main className="page">
+        <PaymentReminder
+          amount={paymentReminder.amount}
+          tikkieUrl={paymentReminder.tikkieUrl}
+          onDone={() => setPaymentReminder(null)}
+        />
+      </main>
+    );
   }
 
   return (
@@ -344,7 +431,7 @@ export default function Page() {
             <input
               className="input"
               value={name}
-              onChange={e => setName(e.target.value)}
+              onChange={event => setName(event.target.value)}
               placeholder="Bijv. Jan Jansen"
             />
           </section>
@@ -366,19 +453,22 @@ export default function Page() {
             <input
               className="input"
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={event => setSearch(event.target.value)}
               placeholder="Zoek product..."
             />
           </section>
 
           <div className="tabs">
-            {categories.map(c => (
+            {categories.map(currentCategory => (
               <button
-                key={c}
-                className={'tab ' + (category === c ? 'active' : '')}
-                onClick={() => setCategory(c)}
+                key={currentCategory}
+                className={
+                  'tab ' +
+                  (category === currentCategory ? 'active' : '')
+                }
+                onClick={() => setCategory(currentCategory)}
               >
-                {c}
+                {currentCategory}
               </button>
             ))}
           </div>
@@ -416,7 +506,8 @@ export default function Page() {
                 onClick={() => setCartOpen(true)}
               >
                 Bekijk bestelling ({cartItemCount}{' '}
-                {cartItemCount === 1 ? 'item' : 'items'} · {euro(cartTotal)})
+                {cartItemCount === 1 ? 'item' : 'items'} ·{' '}
+                {euro(cartTotal)})
               </button>
             </div>
           )}

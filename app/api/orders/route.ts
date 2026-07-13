@@ -10,17 +10,41 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-function getCurrentWeekKey() {
+function getAmsterdamDateParts() {
   const now = new Date();
 
-  const date = new Date(
-    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
-  );
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Amsterdam',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).formatToParts(now);
+
+  const getPart = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find(part => part.type === type)?.value || 0);
+
+  return {
+    year: getPart('year'),
+    month: getPart('month'),
+    day: getPart('day'),
+    hour: getPart('hour'),
+    minute: getPart('minute')
+  };
+}
+
+function getCurrentWeekKey() {
+  const { year, month, day } = getAmsterdamDateParts();
+
+  const date = new Date(Date.UTC(year, month - 1, day));
 
   const dayNum = date.getUTCDay() || 7;
   date.setUTCDate(date.getUTCDate() + 4 - dayNum);
 
   const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+
   const weekNo = Math.ceil(
     ((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7
   );
@@ -33,17 +57,28 @@ function isOwnerName(personName: string) {
 }
 
 function isLateOrder() {
-  const now = new Date();
+  const { year, month, day, hour, minute } = getAmsterdamDateParts();
 
-  const parts = new Intl.DateTimeFormat('nl-NL', {
-    timeZone: 'Europe/Amsterdam',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  }).formatToParts(now);
+  /*
+   * We gebruiken de Amsterdamse kalenderdatum en zetten die om naar
+   * een neutrale UTC-datum, alleen om de weekdag betrouwbaar te bepalen.
+   *
+   * getUTCDay():
+   * 0 = zondag
+   * 1 = maandag
+   * 2 = dinsdag
+   * 3 = woensdag
+   * 4 = donderdag
+   * 5 = vrijdag
+   * 6 = zaterdag
+   */
+  const weekday = new Date(
+    Date.UTC(year, month - 1, day)
+  ).getUTCDay();
 
-  const hour = Number(parts.find(part => part.type === 'hour')?.value || 0);
-  const minute = Number(parts.find(part => part.type === 'minute')?.value || 0);
+  if (weekday !== 5) {
+    return false;
+  }
 
   return (
     hour > ORDER_CLOSE_HOUR ||
@@ -65,7 +100,9 @@ function mapOrder(order: any) {
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const selectedWeekKey = searchParams.get('weekKey') || getCurrentWeekKey();
+
+  const selectedWeekKey =
+    searchParams.get('weekKey') || getCurrentWeekKey();
 
   const { data, error } = await supabase
     .from('orders')
@@ -74,7 +111,10 @@ export async function GET(request: Request) {
     .order('created_at', { ascending: false });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json((data || []).map(mapOrder));
@@ -88,7 +128,10 @@ export async function POST(request: Request) {
   const items = body.items || [];
 
   if (!personName) {
-    return NextResponse.json({ error: 'Naam is verplicht' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Naam is verplicht' },
+      { status: 400 }
+    );
   }
 
   if (!items.length) {
@@ -110,13 +153,18 @@ export async function POST(request: Request) {
           late_order: isLateOrder()
         }
       ],
-      { onConflict: 'person_name,week_key' }
+      {
+        onConflict: 'person_name,week_key'
+      }
     )
     .select()
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json(mapOrder(data));
@@ -126,7 +174,11 @@ export async function PATCH(request: Request) {
   const body = await request.json();
 
   const orderId = body.orderId ? String(body.orderId) : '';
-  const weekKey = body.weekKey ? String(body.weekKey) : getCurrentWeekKey();
+
+  const weekKey = body.weekKey
+    ? String(body.weekKey)
+    : getCurrentWeekKey();
+
   const paid = Boolean(body.paid);
   const all = Boolean(body.all);
 
@@ -148,7 +200,10 @@ export async function PATCH(request: Request) {
   const { error } = await query;
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ ok: true });
@@ -158,7 +213,9 @@ export async function DELETE(request: Request) {
   const { searchParams } = new URL(request.url);
 
   const orderId = searchParams.get('orderId');
-  const selectedWeekKey = searchParams.get('weekKey') || getCurrentWeekKey();
+
+  const selectedWeekKey =
+    searchParams.get('weekKey') || getCurrentWeekKey();
 
   let query = supabase.from('orders').delete();
 
@@ -171,7 +228,10 @@ export async function DELETE(request: Request) {
   const { error } = await query;
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ ok: true });
