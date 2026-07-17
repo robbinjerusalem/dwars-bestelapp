@@ -88,8 +88,7 @@ export default function PaymentReminder({
         <strong>Betaal bij voorkeur direct via Tikkie.</strong>
 
         <div style={{ marginTop: 6 }}>
-          We testen deze betaalstap de eerste weken. Je bestelling blijft
-          gewoon opgeslagen als betalen niet direct lukt.
+          Vul in Tikkie het bovenstaande bedrag in.
         </div>
       </div>
 
@@ -148,7 +147,7 @@ export default function PaymentReminder({
           marginTop: 16
         }}
       >
-        Lukt betalen niet? Laat het Robbin even weten.
+        Problemen met betalen? Laat het even weten.
       </div>
     </section>
   );
