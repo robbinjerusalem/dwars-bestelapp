@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   applicationName: 'Dwars',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'black-translucent',
+    statusBarStyle: 'default',
     title: 'Dwars'
   },
   formatDetection: {
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: '#c24a2e',
-  colorScheme: 'light dark'
+  colorScheme: 'light'
 };
 
 export default function RootLayout({

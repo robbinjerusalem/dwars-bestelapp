@@ -2,6 +2,15 @@
   box-sizing: border-box;
 }
 
+:root {
+  color-scheme: light;
+}
+
+html {
+  background: #fafafa;
+  color-scheme: light;
+}
+
 body {
   margin: 0;
   font-family: Arial, sans-serif;
@@ -11,8 +20,11 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
+  color: #1f2937;
+  color-scheme: light;
 }
 
 button {
@@ -34,17 +46,18 @@ button {
 }
 
 .card {
-  background: white;
+  background: #ffffff;
+  color: #1f2937;
   border: 1px solid #e5e7eb;
   border-radius: 18px;
   padding: 18px;
-  box-shadow: 0 8px 25px rgba(0,0,0,.04);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.04);
   overflow-x: auto;
 }
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px,1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 16px;
 }
 
@@ -75,7 +88,9 @@ button {
   cursor: pointer;
   font-weight: 700;
   min-height: 44px;
-  transition: 0.2s;
+  transition: opacity 0.2s;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .btn:hover {
@@ -84,6 +99,7 @@ button {
 
 .btn.secondary {
   background: #e5e7eb;
+  color: #111827;
 }
 
 .btn.danger {
@@ -96,8 +112,16 @@ button {
   border: 1px solid #d1d5db;
   border-radius: 12px;
   padding: 13px 14px;
-  background: white;
+  background: #ffffff;
+  color: #1f2937;
   font-size: 16px;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.input::placeholder {
+  color: #6b7280;
+  opacity: 1;
 }
 
 .tabs {
@@ -111,15 +135,23 @@ button {
   border: 1px solid #e5e7eb;
   border-radius: 999px;
   padding: 10px 14px;
-  background: white;
+  background: #ffffff;
+  color: #111827;
   cursor: pointer;
   min-height: 42px;
-  transition: 0.2s;
+  transition: opacity 0.2s;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.tab:hover {
+  opacity: 0.92;
 }
 
 .tab.active {
   background: #f6c51f;
   border-color: #f6c51f;
+  color: #111827;
   font-weight: 700;
 }
 
@@ -140,7 +172,7 @@ button {
 .modalBg {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.35);
+  background: rgba(0, 0, 0, 0.35);
   display: grid;
   place-items: center;
   padding: 20px;
@@ -148,7 +180,8 @@ button {
 }
 
 .modal {
-  background: white;
+  background: #ffffff;
+  color: #1f2937;
   border-radius: 22px;
   padding: 22px;
   max-width: 650px;
@@ -176,7 +209,8 @@ button {
 .totalBox {
   position: sticky;
   bottom: 0;
-  background: white;
+  background: #ffffff;
+  color: #1f2937;
   border-top: 1px solid #e5e7eb;
   padding: 16px;
   margin: 24px -24px -24px;
@@ -184,6 +218,7 @@ button {
 }
 
 @media (max-width: 720px) {
+  html,
   body {
     background: #f3f4f6;
   }
@@ -251,6 +286,13 @@ button {
   .tab {
     white-space: nowrap;
     flex: 0 0 auto;
+    background: #ffffff;
+    color: #111827;
+  }
+
+  .tab.active {
+    background: #f6c51f;
+    color: #111827;
   }
 
   .totalBox {
@@ -261,7 +303,7 @@ button {
     margin: 0;
     padding: 14px 16px;
     border-radius: 18px 18px 0 0;
-    box-shadow: 0 -8px 25px rgba(0,0,0,.12);
+    box-shadow: 0 -8px 25px rgba(0, 0, 0, 0.12);
     z-index: 40;
   }
 
@@ -271,15 +313,15 @@ button {
   }
 
   .modal {
-  width: 100%;
-  max-width: 100%;
-  max-height: 88vh;
-  border-radius: 22px 22px 0 0;
-  padding: 18px;
-  padding-bottom: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
+    width: 100%;
+    max-width: 100%;
+    max-height: 88vh;
+    border-radius: 22px 22px 0 0;
+    padding: 18px;
+    padding-bottom: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
 
   .modal .totalBox {
     position: sticky;
