@@ -1,11 +1,33 @@
 import './globals.css';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 
 export const metadata: Metadata = {
   title: 'Dwars Bestelapp',
-  description: 'Wekelijkse bestelling bij Cafetaria Dwars'
+  description: 'Bestel jouw lunch eenvoudig bij Cafetaria Dwars.',
+  applicationName: 'Dwars',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Dwars'
+  },
+  formatDetection: {
+    telephone: false
+  }
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return <html lang="nl"><body>{children}</body></html>;
+export const viewport: Viewport = {
+  themeColor: '#c24a2e',
+  colorScheme: 'light dark'
+};
+
+export default function RootLayout({
+  children
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="nl">
+      <body>{children}</body>
+    </html>
+  );
 }
