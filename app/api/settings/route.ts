@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+export const dynamic = 'force-dynamic';
+
 const ADMIN_PIN = '7161';
 const TIKKIE_SETTING_KEY = 'weekly_tikkie_link';
 
